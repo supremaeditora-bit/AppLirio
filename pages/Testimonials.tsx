@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { getCommunityPosts, addReactionToPost } from '../services/api';
 import { CommunityPost, User, Page } from '../types';
 import Spinner from '../components/Spinner';
-import { SearchIcon, BellIcon, UserCircleIcon, HeartIcon, ChatBubbleIcon, ShareIcon, BookOpenIcon, PlusIcon } from '../components/Icons';
+import { HeartIcon, ChatBubbleIcon, BookOpenIcon, PlusIcon } from '../components/Icons';
 import Button from '../components/Button';
+import SearchAndFilter from '../components/SearchAndFilter';
 
 interface TestimonialsProps {
   onViewTestimonial: (id: string) => void;
@@ -11,7 +12,7 @@ interface TestimonialsProps {
   user: User | null;
 }
 
-const TestimonialCard: React.FC<{ post: CommunityPost; onCardClick: () => void; user: User | null }> = ({ post, onCardClick, user }) => {
+const TestimonialCard: React.FC<{ post: CommunityPost; onCardClick: () => void; user: User | null }> = React.memo(({ post, onCardClick, user }) => {
     const [reactions, setReactions] = useState(post.reactions);
     const hasReacted = user ? reactions.some(r => r.userId === user.id) : false;
 
@@ -30,13 +31,13 @@ const TestimonialCard: React.FC<{ post: CommunityPost; onCardClick: () => void; 
     return (
         <div onClick={onCardClick} className="bg-branco-nevoa dark:bg-verde-mata p-6 rounded-2xl shadow-lg cursor-pointer transition-transform hover:scale-[1.02]">
             <div className="flex items-center mb-4">
-                <img src={post.author.avatarUrl} alt={post.author.name} className="w-10 h-10 rounded-full object-cover mr-3" />
+                <img src={post.author.avatarUrl} alt={post.author.name} loading="lazy" className="w-10 h-10 rounded-full object-cover mr-3" />
                 <span className="font-sans font-semibold text-verde-mata dark:text-creme-velado">{post.author.name}</span>
             </div>
             
             {post.imageUrl && (
                  <div className="aspect-video rounded-lg overflow-hidden mb-4">
-                    <img src={post.imageUrl} alt={post.title} className="w-full h-full object-cover"/>
+                    <img src={post.imageUrl} alt={post.title} loading="lazy" className="w-full h-full object-cover"/>
                  </div>
             )}
             
@@ -57,18 +58,23 @@ const TestimonialCard: React.FC<{ post: CommunityPost; onCardClick: () => void; 
                         <span className="font-sans text-sm font-semibold">{post.comments.length} Comentários</span>
                     </div>
                 </div>
-                <button className="hover:text-dourado-suave transition-colors">
-                    <ShareIcon className="w-5 h-5"/>
-                </button>
             </div>
         </div>
     );
-}
+});
+TestimonialCard.displayName = 'TestimonialCard';
+
+const filterOptions = [
+    { value: 'Recentes', label: 'Mais Recentes' },
+    { value: 'Mais Populares', label: 'Mais Populares' },
+];
 
 export default function Testimonials({ onViewTestimonial, onNavigate, user }: TestimonialsProps) {
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [filteredPosts, setFilteredPosts] = useState<CommunityPost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('Recentes');
 
   useEffect(() => {
@@ -82,32 +88,37 @@ export default function Testimonials({ onViewTestimonial, onNavigate, user }: Te
   }, []);
 
   useEffect(() => {
-    let sortedPosts = [...posts];
+    let results = [...posts];
+    
+    if (searchQuery) {
+        const lowercasedQuery = searchQuery.toLowerCase();
+        results = results.filter(post => 
+            post.title.toLowerCase().includes(lowercasedQuery) ||
+            post.body.toLowerCase().includes(lowercasedQuery) ||
+            post.author.name.toLowerCase().includes(lowercasedQuery)
+        );
+    }
+
     if (activeFilter === 'Recentes') {
-        sortedPosts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     } else if (activeFilter === 'Mais Populares') {
-        sortedPosts.sort((a, b) => {
+        results.sort((a, b) => {
             const popularityA = a.reactions.length + a.comments.length;
             const popularityB = b.reactions.length + b.comments.length;
             return popularityB - popularityA;
         });
     }
-    setFilteredPosts(sortedPosts);
-  }, [activeFilter, posts]);
+    setFilteredPosts(results);
+  }, [searchQuery, activeFilter, posts]);
 
   return (
     <div className="bg-creme-velado/40 dark:bg-verde-escuro-profundo/40 min-h-full">
-        {/* Custom Header for Testimonials */}
         <header className="sticky top-0 z-10 flex items-center justify-between p-4 bg-creme-velado/80 dark:bg-verde-mata/80 backdrop-blur-md border-b border-marrom-seiva/10 dark:border-creme-velado/10">
             <div className="flex items-center space-x-2">
                 <BookOpenIcon className="w-7 h-7 text-verde-mata dark:text-dourado-suave" />
                 <h1 className="font-serif text-xl font-bold text-verde-mata dark:text-dourado-suave">Testemunhos de Fé</h1>
             </div>
             <div className="flex items-center gap-4">
-                <div className="relative hidden md:block">
-                    <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-marrom-seiva/50 dark:text-creme-velado/50"/>
-                    <input type="text" placeholder="Pesquisar..." className="w-full pl-10 pr-4 py-2 bg-marrom-seiva/5 dark:bg-creme-velado/5 rounded-full font-sans text-sm focus:outline-none focus:ring-2 focus:ring-dourado-suave"/>
-                </div>
                 <Button onClick={() => onNavigate('publishTestimonial')} className="!py-2 !px-4">Adicionar Testemunho</Button>
             </div>
         </header>
@@ -115,29 +126,28 @@ export default function Testimonials({ onViewTestimonial, onNavigate, user }: Te
         <main className="max-w-3xl mx-auto p-4 sm:p-8">
             <h2 className="font-serif text-4xl font-bold text-verde-mata dark:text-dourado-suave">Feed de Testemunhos</h2>
             
-            <div className="my-6 flex items-center space-x-2 border-b border-marrom-seiva/10 dark:border-creme-velado/10">
-                {['Recentes', 'Mais Populares'].map(filter => (
-                     <button 
-                        key={filter}
-                        onClick={() => setActiveFilter(filter)}
-                        className={`py-2 px-4 font-sans font-semibold text-sm rounded-t-lg transition-colors ${
-                            activeFilter === filter 
-                            ? 'bg-creme-velado dark:bg-verde-mata border-b-2 border-dourado-suave text-dourado-suave'
-                            : 'text-marrom-seiva/70 dark:text-creme-velado/70 hover:bg-marrom-seiva/5 dark:hover:bg-creme-velado/5'
-                        }`}
-                     >
-                        {filter}
-                    </button>
-                ))}
+            <div className="my-6">
+                <SearchAndFilter
+                    searchQuery={searchQuery}
+                    onSearchChange={setSearchQuery}
+                    activeFilter={activeFilter}
+                    onFilterChange={setActiveFilter}
+                    filterOptions={filterOptions}
+                    searchPlaceholder="Buscar por testemunhos..."
+                />
             </div>
 
             {isLoading ? (
                 <div className="flex justify-center items-center py-20"><Spinner /></div>
             ) : (
                 <div className="space-y-8">
-                    {filteredPosts.map(post => (
+                    {filteredPosts.length > 0 ? filteredPosts.map(post => (
                         <TestimonialCard key={post.id} post={post} user={user} onCardClick={() => onViewTestimonial(post.id)} />
-                    ))}
+                    )) : (
+                        <div className="text-center py-10 text-marrom-seiva/70 dark:text-creme-velado/70">
+                            Nenhum testemunho encontrado.
+                        </div>
+                    )}
                 </div>
             )}
         </main>

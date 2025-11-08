@@ -16,6 +16,8 @@ const initialFormData = {
     title: '',
     description: '',
     points: 10,
+    theme: '',
+    sequenceOrder: 0,
 };
 
 export default function ChallengeForm({ isOpen, onClose, challenge }: ChallengeFormProps) {
@@ -56,6 +58,8 @@ export default function ChallengeForm({ isOpen, onClose, challenge }: ChallengeF
         <InputField id="title" label="Título do Desafio" value={formData.title || ''} onChange={handleChange} required />
         <InputField id="description" label="Descrição" type="textarea" value={formData.description || ''} onChange={handleChange} required />
         <InputField id="points" label="Pontos de Recompensa" type="number" value={formData.points || ''} onChange={handleChange} required />
+        <InputField id="theme" label="Tema (Opcional)" placeholder="Ex: Jornada da Gratidão" value={formData.theme || ''} onChange={handleChange} />
+        <InputField id="sequenceOrder" label="Ordem na Sequência (Opcional)" type="number" value={formData.sequenceOrder || ''} onChange={handleChange} />
       </div>
       <div className="mt-6 flex justify-end space-x-4">
         <Button variant="secondary" onClick={onClose} disabled={isLoading}>Cancelar</Button>

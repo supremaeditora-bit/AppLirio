@@ -1,5 +1,5 @@
 {
-  "name": "ELV | Assistente Espiritual",
+  "name": "Lírios do Vale",
   "description": "Uma aplicação de acolhimento e orientação para mulheres em sabedoria cristã prática, oferecida pela Escola Lírios do Vale (ELV). Inclui devocionais, mentoria, comunidade e um diário espiritual privado.",
   "requestFramePermissions": [
     "microphone"

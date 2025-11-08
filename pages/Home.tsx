@@ -7,8 +7,8 @@ import Button from '../components/Button';
 import Carousel from '../components/Carousel';
 import ProgressBar from '../components/ProgressBar';
 import { BookOpenIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
-// FIX: Corrected the import for PrayingHandsIcon. The alias was incorrect as `HandRaisedIcon` is not exported from `../components/Icons`.
-import { PrayingHandsIcon } from '../components/Icons';
+import { PrayingHandsIcon, LeafIcon } from '../components/Icons';
+import { LEVELS } from '../services/gamificationConstants';
 
 
 interface HomeProps {
@@ -17,26 +17,17 @@ interface HomeProps {
     onViewDetail: (id: string) => void;
 }
 
-const levelData: { [key: string]: { nextLevel: string, points: number } } = {
-    'Iniciante da Fé': { nextLevel: 'Aprendiz da Palavra', points: 1000 },
-    'Aprendiz da Palavra': { nextLevel: 'Guerreira de Oração', points: 2500 },
-    'Guerreira de Oração': { nextLevel: 'Mentora de Fé', points: 5000 },
-    'Mentora de Fé': { nextLevel: 'Mentora de Fé', points: 5000 }
-};
-
 export default function Home({ onNavigate, user, onViewDetail }: HomeProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [dailyDevotional, setDailyDevotional] = useState<GeneratedDevotional | null>(null);
   
   const [continueWatching, setContinueWatching] = useState<ContentItem[]>([]);
-  const [featuredMentorship, setFeaturedMentorship] = useState<ContentItem | null>(null);
   const [latestTestimonial, setLatestTestimonial] = useState<CommunityPost | null>(null);
 
-  // States for category carousels
-  const [mentorships, setMentorships] = useState<ContentItem[]>([]);
   const [lives, setLives] = useState<ContentItem[]>([]);
   const [studies, setStudies] = useState<ContentItem[]>([]);
   const [podcasts, setPodcasts] = useState<ContentItem[]>([]);
+  const [mentorships, setMentorships] = useState<ContentItem[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -52,20 +43,15 @@ export default function Home({ onNavigate, user, onViewDetail }: HomeProps) {
           getCommunityPosts('testemunhos'),
         ]);
 
-        // Process Content
         setContinueWatching(allContent.filter(item => item.progress && item.progress > 0 && item.progress < (item.total || 1)));
-        setFeaturedMentorship(allContent.find(c => c.type === 'Mentoria') || null);
         setLatestTestimonial(testimonials[0] || null);
         
-        // Filter content for category carousels
         const sortedContent = allContent.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-        setMentorships(sortedContent.filter(item => item.type === 'Mentoria').slice(0, 10));
         setLives(sortedContent.filter(item => item.type === 'Live').slice(0, 10));
         setStudies(sortedContent.filter(item => item.type === 'Estudo').slice(0, 10));
         setPodcasts(sortedContent.filter(item => item.type === 'Podcast').slice(0, 10));
+        setMentorships(sortedContent.filter(item => item.type === 'Mentoria').slice(0, 10));
 
-
-        // Daily Devotional Logic
         const today = new Date().toISOString().split('T')[0];
         if (settings?.isAiDevotionalEnabled) {
             if (settings.dailyDevotional?.date === today) {
@@ -92,18 +78,15 @@ export default function Home({ onNavigate, user, onViewDetail }: HomeProps) {
   }
 
   if (!user) {
-    // Should be handled by App.tsx, but as a fallback
     onNavigate('landing');
     return null;
   }
   
-  const userLevelInfo = levelData[user.level] || levelData['Mentora de Fé'];
-  const progressPercentage = Math.min((user.points / userLevelInfo.points) * 100, 100);
+  const userLevelInfo = LEVELS[user.level] || LEVELS['Árvore Frutífera'];
 
   return (
     <>
       <div className="p-4 sm:p-6 md:p-8 space-y-8">
-        {/* Header Greeting */}
         <header>
           <h1 className="font-serif text-3xl md:text-4xl font-bold text-verde-mata dark:text-dourado-suave">
             Bem-vinda, {user.displayName.split(' ')[0]}!
@@ -113,12 +96,9 @@ export default function Home({ onNavigate, user, onViewDetail }: HomeProps) {
           </p>
         </header>
 
-        {/* Main Grid: Dashboard Area */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
-          {/* Main Content Area (Left/Top on mobile) */}
           <div className="lg:col-span-2">
-            {/* Daily Devotional */}
             {dailyDevotional && (
               <section 
                 className="relative p-6 sm:p-8 rounded-2xl text-white flex flex-col justify-end min-h-[300px] bg-cover bg-center overflow-hidden h-full" 
@@ -134,20 +114,22 @@ export default function Home({ onNavigate, user, onViewDetail }: HomeProps) {
             )}
           </div>
           
-          {/* Sidebar Area (Right/Bottom on mobile) */}
           <div className="space-y-8">
-              {/* Profile & Quick Actions */}
               <section className="bg-branco-nevoa dark:bg-verde-mata p-6 rounded-2xl shadow-lg space-y-4">
                   <div>
                       <div className="flex justify-between items-center font-sans text-sm font-semibold text-marrom-seiva/80 dark:text-creme-velado/80">
                           <span>Nível: {user.level}</span>
-                          <span>{user.points} / {userLevelInfo.points} pts</span>
+                          <span>💧 {user.points} / {userLevelInfo.points}</span>
                       </div>
                       <div className="mt-2">
                           <ProgressBar current={user.points} max={userLevelInfo.points} />
                       </div>
                   </div>
-                  <div className="grid grid-cols-1 gap-3 pt-2">
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                       <Button onClick={() => onNavigate('myGarden')} variant="secondary" className="!justify-center !px-4 !py-3">
+                          <LeafIcon className="w-5 h-5 mr-2" />
+                          Meu Jardim
+                      </Button>
                        <Button onClick={() => onNavigate('prayers')} variant="secondary" className="!justify-center !px-4 !py-3">
                           <PrayingHandsIcon className="w-5 h-5 mr-2" />
                           Orações
@@ -155,17 +137,16 @@ export default function Home({ onNavigate, user, onViewDetail }: HomeProps) {
                   </div>
               </section>
 
-              {/* Latest Testimonial */}
               {latestTestimonial && (
                   <section className="bg-branco-nevoa dark:bg-verde-mata p-6 rounded-2xl shadow-lg">
                        <h3 className="font-serif text-xl font-semibold mb-3 text-verde-mata dark:text-dourado-suave">Comunidade em Ação</h3>
                        <div className="space-y-2">
                           <div className="flex items-center space-x-2">
-                              <img src={latestTestimonial.author.avatarUrl} alt={latestTestimonial.author.name} className="w-8 h-8 rounded-full"/>
+                              <img src={latestTestimonial.author.avatarUrl} alt={latestTestimonial.author.name} loading="lazy" className="w-8 h-8 rounded-full"/>
                               <span className="font-sans text-sm font-semibold">{latestTestimonial.author.name}</span>
                           </div>
-                          <p className="font-sans text-sm italic text-marrom-seiva/90 dark:text-creme-velado/90">"{latestTestimonial.body}"</p>
-                          <button onClick={() => onNavigate('testimonials', latestTestimonial.id)} className="font-sans text-sm font-bold text-dourado-suave hover:underline flex items-center">
+                          <p className="font-sans text-sm italic text-marrom-seiva/90 dark:text-creme-velado/90 line-clamp-2">"{latestTestimonial.body.substring(0, 100)}..."</p>
+                          <button onClick={() => onNavigate('testimonialDetail', latestTestimonial.id)} className="font-sans text-sm font-bold text-dourado-suave hover:underline flex items-center">
                               Ler mais <ChevronRightIcon className="w-4 h-4 ml-1"/>
                           </button>
                        </div>
@@ -174,9 +155,7 @@ export default function Home({ onNavigate, user, onViewDetail }: HomeProps) {
           </div>
         </div>
 
-        {/* Content Discovery Section */}
         <div className="space-y-8">
-            {/* Continue Watching */}
             {continueWatching.length > 0 && (
               <Carousel 
                 title="Continuar sua Jornada" 
@@ -186,25 +165,7 @@ export default function Home({ onNavigate, user, onViewDetail }: HomeProps) {
               />
             )}
             
-            {/* Featured Mentorship */}
-            {featuredMentorship && (
-                <section>
-                    <h2 className="font-serif text-3xl font-semibold mb-4 text-verde-mata dark:text-dourado-suave">Mentoria em Destaque</h2>
-                    <div onClick={() => onViewDetail(featuredMentorship.id)} className="group cursor-pointer bg-branco-nevoa dark:bg-verde-mata p-4 rounded-2xl shadow-lg flex flex-col md:flex-row gap-6 items-center">
-                        <img src={featuredMentorship.imageUrl} alt={featuredMentorship.title} className="aspect-video w-full md:w-1/3 object-cover rounded-xl" />
-                        <div className="md:w-2/3">
-                          <h4 className="font-serif text-2xl font-semibold text-verde-mata dark:text-creme-velado group-hover:text-dourado-suave transition-colors">{featuredMentorship.title}</h4>
-                          <p className="font-sans text-marrom-seiva/80 dark:text-creme-velado/80 line-clamp-3 mt-2">{featuredMentorship.description}</p>
-                           <Button variant="secondary" className="mt-4">
-                                Ver Mentoria <ChevronRightIcon className="w-4 h-4 ml-2" />
-                           </Button>
-                        </div>
-                    </div>
-                </section>
-            )}
-            
-            {/* Category Carousels */}
-            {mentorships.length > 0 && (
+             {mentorships.length > 0 && (
               <Carousel title="Mentorias" items={mentorships} onCardClick={onViewDetail} user={user} />
             )}
             {studies.length > 0 && (

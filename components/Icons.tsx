@@ -32,6 +32,17 @@ import {
     HandRaisedIcon as HandRaisedIconOutline, // Replacement for PrayingHandsIcon
     VideoCameraIcon as VideoCameraIconOutline, // NEW for Lives
     PaperAirplaneIcon as PaperAirplaneIconOutline, // NEW for sending messages
+    CalendarDaysIcon as CalendarDaysIconOutline,
+    CameraIcon as CameraIconOutline,
+    MapPinIcon as MapPinIconOutline,
+    HomeModernIcon as HomeModernIconOutline,
+    ClockIcon as ClockIconOutline,
+    PauseIcon as PauseIconOutline,
+    ForwardIcon as ForwardIconOutline,
+    BackwardIcon as BackwardIconOutline,
+    ArrowDownTrayIcon as ArrowDownTrayIconOutline,
+    PencilSquareIcon as PencilSquareIconOutline,
+    NoSymbolIcon as BlockIconOutline,
 } from '@heroicons/react/24/outline';
 
 import {
@@ -79,6 +90,18 @@ export const ShareIcon: React.FC<IconProps> = (props) => <ShareIconOutline {...p
 export const PrayingHandsIcon: React.FC<IconProps> = (props) => <HandRaisedIconOutline {...props} />; // Using a consistent replacement
 export const VideoCameraIcon: React.FC<IconProps> = (props) => <VideoCameraIconOutline {...props} />; // NEW
 export const PaperAirplaneIcon: React.FC<IconProps> = (props) => <PaperAirplaneIconOutline {...props} />; // NEW
+export const CalendarDaysIcon: React.FC<IconProps> = (props) => <CalendarDaysIconOutline {...props} />;
+export const CameraIcon: React.FC<IconProps> = (props) => <CameraIconOutline {...props} />;
+export const MapPinIcon: React.FC<IconProps> = (props) => <MapPinIconOutline {...props} />;
+export const HomeModernIcon: React.FC<IconProps> = (props) => <HomeModernIconOutline {...props} />;
+export const ClockIcon: React.FC<IconProps> = (props) => <ClockIconOutline {...props} />;
+export const PauseIcon: React.FC<IconProps> = (props) => <PauseIconOutline {...props} />;
+export const ForwardIcon: React.FC<IconProps> = (props) => <ForwardIconOutline {...props} />;
+export const BackwardIcon: React.FC<IconProps> = (props) => <BackwardIconOutline {...props} />;
+export const DownloadIcon: React.FC<IconProps> = (props) => <ArrowDownTrayIconOutline {...props} />;
+export const JournalIcon: React.FC<IconProps> = (props) => <PencilSquareIconOutline {...props} />;
+export const BlockIcon: React.FC<IconProps> = (props) => <BlockIconOutline {...props} />;
+
 
 // --- Icons with Filled/Outline states ---
 
@@ -96,6 +119,18 @@ export const CheckCircleIcon: React.FC<IconProps> = (props) => <CheckCircleIconS
 // --- Custom/Brand Icons (kept as SVG) ---
 const Icon: React.FC<React.SVGProps<SVGSVGElement> & { className?: string }> = ({ className = 'w-6 h-6', ...props }) => (
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className} {...props}>{props.children}</svg>
+);
+
+export const DropIcon: React.FC<IconProps> = (props) => (
+    <Icon {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 22a8 8 0 008-8c0-4.42-8-12-8-12S4 9.58 4 14a8 8 0 008 8z" />
+    </Icon>
+);
+
+export const LeafIcon: React.FC<IconProps> = (props) => (
+    <Icon {...props}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 2a2.5 2.5 0 012.5 2.5c0 .41-.1.81-.28 1.18a.5.5 0 00.41.69h2.37a.5.5 0 00.44-.72 4.5 4.5 0 00-6.8-2.65A4.49 4.49 0 0012 2zM9.5 4.5a2.5 2.5 0 00-2.5 2.5c0 .41.1.81.28 1.18a.5.5 0 01-.41.69H4.5a.5.5 0 01-.44-.72 4.5 4.5 0 016.8-2.65A4.49 4.49 0 019.5 4.5zM12 22a2.5 2.5 0 00-2.5-2.5c0-.41-.1-.81-.28-1.18a.5.5 0 01.41-.69h-2.37a.5.5 0 01-.44.72 4.5 4.5 0 006.8 2.65A4.49 4.49 0 0012 22zM14.5 19.5a2.5 2.5 0 012.5-2.5c0-.41.1-.81.28-1.18a.5.5 0 00-.41-.69h2.37a.5.5 0 00.44.72 4.5 4.5 0 01-6.8 2.65A4.49 4.49 0 0114.5 19.5zM2 12a2.5 2.5 0 012.5-2.5c.41 0 .81.1 1.18.28a.5.5 0 00.69-.41V7.5a.5.5 0 00-.72-.44 4.5 4.5 0 00-2.65 6.8A4.49 4.49 0 002 12zM4.5 14.5a2.5 2.5 0 002.5-2.5c.41 0 .81.1 1.18.28a.5.5 0 01.69-.41V9.5a.5.5 0 01-.72-.44 4.5 4.5 0 00-2.65 6.8A4.49 4.49 0 004.5 14.5zM22 12a2.5 2.5 0 00-2.5 2.5c-.41 0-.81-.1-1.18-.28a.5.5 0 01-.69.41v2.37a.5.5 0 01.72.44 4.5 4.5 0 002.65-6.8A4.49 4.49 0 0022 12zM19.5 9.5a2.5 2.5 0 01-2.5 2.5c-.41 0-.81-.1-1.18-.28a.5.5 0 00-.69.41v2.37a.5.5 0 00.72.44 4.5 4.5 0 002.65-6.8A4.49 4.49 0 0119.5 9.5z"></path>
+    </Icon>
 );
 
 export const GoogleIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' }) => (

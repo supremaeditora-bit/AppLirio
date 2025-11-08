@@ -43,7 +43,7 @@ export default function ContentForm({ isOpen, onClose, item, user, defaultType }
     if (isOpen) {
       if (item) {
         setFormData(item);
-        if (item.type === 'Podcast') {
+        if (item.type === 'Podcast' || item.type === 'Devocional') {
             setAudioSource('url');
         }
       } else {
@@ -55,6 +55,8 @@ export default function ContentForm({ isOpen, onClose, item, user, defaultType }
           type: defaultType || 'Devocional',
           contentBody: '',
           audioUrl: '',
+          actionUrl: '',
+          downloadableResource: { url: '' },
           duration: 0,
         });
       }
@@ -72,7 +74,14 @@ export default function ContentForm({ isOpen, onClose, item, user, defaultType }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { id, value } = e.target;
-    setFormData(prev => ({ ...prev, [id]: value }));
+    if (id === 'downloadUrl') {
+        setFormData(prev => ({
+            ...prev,
+            downloadableResource: { ...(prev.downloadableResource || { url: '' }), url: value }
+        }));
+    } else {
+        setFormData(prev => ({ ...prev, [id]: value }));
+    }
   };
 
   const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -146,7 +155,7 @@ export default function ContentForm({ isOpen, onClose, item, user, defaultType }
             finalImageUrl = await uploadImage(selectedImageFile, user.id, setImageUploadProgress);
         }
 
-        if (formData.type === 'Podcast') {
+        if (formData.type === 'Podcast' || formData.type === 'Devocional') {
             if (audioSource === 'upload' && selectedAudioFile) {
                 finalAudioUrl = await uploadAudio(selectedAudioFile, user.id, setAudioUploadProgress);
             } else if (audioSource === 'record' && recordedBlob) {
@@ -159,7 +168,7 @@ export default function ContentForm({ isOpen, onClose, item, user, defaultType }
         if (isEditing) {
             await updateContentItem(dataToSave as ContentItem);
         } else {
-            await createContentItem(dataToSave as Omit<ContentItem, 'id' | 'createdAt'>);
+            await createContentItem(dataToSave as Omit<ContentItem, 'id' | 'createdAt' | 'comments' | 'reactions'>);
         }
         onClose();
     } catch (error) {
@@ -169,7 +178,7 @@ export default function ContentForm({ isOpen, onClose, item, user, defaultType }
     }
   };
   
-  const renderPodcastOptions = () => (
+  const renderAudioOptions = () => (
       <div className="space-y-4 pt-4 border-t border-marrom-seiva/20 dark:border-creme-velado/20 mt-4">
         <h3 className="font-sans font-semibold text-marrom-seiva dark:text-creme-velado/80">Fonte do Áudio</h3>
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
@@ -244,14 +253,22 @@ export default function ContentForm({ isOpen, onClose, item, user, defaultType }
             className="w-full font-sans bg-creme-velado dark:bg-verde-escuro-profundo border-2 border-marrom-seiva/20 dark:border-creme-velado/20 rounded-lg p-3 text-marrom-seiva dark:text-creme-velado focus:outline-none focus:ring-2 focus:ring-dourado-suave focus:border-dourado-suave transition-colors"
           >
             <option value="Devocional">Devocional</option>
-            <option value="Mentoria">Mentoria</option>
             <option value="Live">Live</option>
             <option value="Podcast">Podcast</option>
             <option value="Estudo">Estudo</option>
+            <option value="Mentoria">Mentoria</option>
           </select>
         </div>
+
+        {formData.type === 'Mentoria' && (
+            <div className="space-y-4 pt-4 border-t border-marrom-seiva/20 dark:border-creme-velado/20 mt-4">
+                <h3 className="font-sans font-semibold text-marrom-seiva dark:text-creme-velado/80">Recursos da Mentoria</h3>
+                <InputField id="actionUrl" label="URL do Vídeo (YouTube)" value={formData.actionUrl || ''} onChange={handleChange} />
+                 <InputField id="downloadUrl" label="URL do Material para Download (opcional)" value={formData.downloadableResource?.url || ''} onChange={handleChange} />
+            </div>
+        )}
         
-        {formData.type === 'Podcast' && renderPodcastOptions()}
+        {(formData.type === 'Podcast' || formData.type === 'Devocional') && renderAudioOptions()}
 
         <InputField id="contentBody" label="Corpo do Conteúdo (Opcional, aceita HTML)" type="textarea" value={formData.contentBody || ''} onChange={handleChange} />
       </div>

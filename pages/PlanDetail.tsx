@@ -10,6 +10,7 @@ interface PlanDetailProps {
   id: string;
   user: User | null;
   onNavigate: (page: Page) => void;
+  onUserUpdate: (updatedData: Partial<User>) => Promise<void>;
 }
 
 const renderMarkdown = (text: string) => {
@@ -23,7 +24,7 @@ const renderMarkdown = (text: string) => {
         ));
 };
 
-export default function PlanDetail({ id, user, onNavigate }: PlanDetailProps) {
+export default function PlanDetail({ id, user, onNavigate, onUserUpdate }: PlanDetailProps) {
   const [plan, setPlan] = useState<ReadingPlan | null>(null);
   const [progress, setProgress] = useState<UserReadingPlanProgress | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -70,7 +71,12 @@ export default function PlanDetail({ id, user, onNavigate }: PlanDetailProps) {
 
       setIsUpdating(true);
       const newCompletedDays = [...progress.completedDays, currentDay].sort((a,b) => a-b);
-      await updateUserReadingPlanProgress(user.id, plan.id, newCompletedDays);
+      const isPlanFinished = newCompletedDays.length === plan.durationDays;
+      
+      // FIX: Passing 'isPlanFinished' argument and checking returned 'updatedUser' to resolve errors.
+      const updatedUser = await updateUserReadingPlanProgress(user.id, plan.id, newCompletedDays, isPlanFinished);
+      if(updatedUser) onUserUpdate(updatedUser);
+
       setProgress({ ...progress, completedDays: newCompletedDays });
 
       // Advance to the next uncompleted day

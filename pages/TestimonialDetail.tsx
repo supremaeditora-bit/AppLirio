@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getCommunityPostById, addReactionToPost, addCommentToPost, saveTestimonial, deleteCommentFromPost } from '../services/api';
+import { getCommunityPostById, addReactionToPost, addCommentToPost, saveTestimonial, deleteCommentFromPost, addReactionToComment } from '../services/api';
 import { CommunityPost, User, Page, Comment } from '../types';
 import Spinner from '../components/Spinner';
 import { ChevronLeftIcon, HeartIcon, ChatBubbleIcon, ShareIcon, BookmarkIcon, PaperAirplaneIcon, TrashIcon } from '../components/Icons';
@@ -22,6 +22,9 @@ export default function TestimonialDetail({ id, user, onNavigate }: TestimonialD
   const fetchPost = async () => {
     setIsLoading(true);
     const postData = await getCommunityPostById(id);
+    if (postData) {
+        postData.comments.sort((a, b) => (b.reactions?.length || 0) - (a.reactions?.length || 0));
+    }
     setPost(postData || null);
     setIsLoading(false);
   };
@@ -82,6 +85,27 @@ export default function TestimonialDetail({ id, user, onNavigate }: TestimonialD
       setIsConfirmDeleteCommentOpen(false);
       setCommentToDelete(null);
       fetchPost();
+  };
+  
+  const handleCommentReaction = async (commentId: string) => {
+    if (!user || !post) return;
+
+    const updatedComments = post.comments.map(c => {
+        if (c.id === commentId) {
+            const reactions = c.reactions || [];
+            const hasReacted = reactions.some(r => r.userId === user.id);
+            const newReactions = hasReacted
+                ? reactions.filter(r => r.userId !== user.id)
+                : [...reactions, { userId: user.id }];
+            return { ...c, reactions: newReactions };
+        }
+        return c;
+    });
+     updatedComments.sort((a, b) => (b.reactions?.length || 0) - (a.reactions?.length || 0));
+
+    setPost({ ...post, comments: updatedComments });
+
+    await addReactionToComment(post.id, commentId, user.id);
   };
 
   const formatTimeAgo = (dateString: string) => {
@@ -155,9 +179,6 @@ export default function TestimonialDetail({ id, user, onNavigate }: TestimonialD
                         <button onClick={handleSave} className={`hover:text-dourado-suave transition-colors ${hasSaved ? 'text-dourado-suave' : ''}`}>
                             <BookmarkIcon className="w-5 h-5" filled={hasSaved}/>
                         </button>
-                        <button className="hover:text-dourado-suave transition-colors">
-                            <ShareIcon className="w-5 h-5"/>
-                        </button>
                     </div>
                 </div>
             </div>
@@ -184,7 +205,9 @@ export default function TestimonialDetail({ id, user, onNavigate }: TestimonialD
                 )}
 
                 <div className="space-y-4">
-                    {post.comments.map(comment => (
+                    {post.comments.map(comment => {
+                        const hasReacted = user ? comment.reactions?.some(r => r.userId === user.id) : false;
+                        return (
                         <div key={comment.id} className="group flex items-start space-x-3">
                             <img src={comment.author.avatarUrl} alt={comment.author.name} className="w-10 h-10 rounded-full object-cover" />
                             <div className="flex-1 bg-branco-nevoa dark:bg-verde-mata p-4 rounded-xl">
@@ -202,9 +225,15 @@ export default function TestimonialDetail({ id, user, onNavigate }: TestimonialD
                                         </button>
                                     )}
                                 </div>
+                                 <div className="mt-2">
+                                    <button onClick={() => handleCommentReaction(comment.id)} className={`flex items-center space-x-1 text-xs font-semibold ${hasReacted ? 'text-dourado-suave' : 'text-marrom-seiva/60 dark:text-creme-velado/60 hover:text-dourado-suave'}`}>
+                                        <HeartIcon className="w-4 h-4" filled={hasReacted} />
+                                        <span>{comment.reactions?.length || 0}</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                    ))}
+                    )})}
                 </div>
             </div>
         </main>

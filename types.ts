@@ -1,46 +1,37 @@
+// FIX: Replaced incorrect file content with proper type definitions to resolve circular dependencies and export errors.
+
+export type Page = 
+  'landing' | 'login' | 'signup' | 'home' | 'profile' | 
+  'devotionals' | 'studies' | 'lives' | 'podcasts' | 'prayers' |
+  'challenges' | 'mentorships' | 'contentDetail' | 'testimonials' |
+  'testimonialDetail' | 'publishTestimonial' | 'admin' |
+  'readingPlans' | 'planDetail' | 'events' | 'eventDetail' | 'myGarden';
+
 export type Role = 'aluna' | 'mentora' | 'mod' | 'admin';
 
-export type Page =
-  | 'home'
-  | 'devotionals'
-  | 'studies'
-  | 'mentorship'
-  | 'prayers'
-  | 'lives'
-  | 'podcasts'
-  | 'profile'
-  | 'admin'
-  | 'login'
-  | 'signup'
-  | 'contentDetail'
-  // FIX: Added 'testimonials' to the Page type union to allow navigation.
-  | 'testimonials'
-  | 'testimonialDetail'
-  | 'publishTestimonial'
-  | 'readingPlans'
-  | 'planDetail'
-  // FIX: Added 'challenges' to the Page type union to fix a type error in App.tsx.
-  | 'challenges'
-  | 'landing';
+export interface Reaction {
+  userId: string;
+}
 
-export type ContentType = 'Devocional' | 'Mentoria' | 'Live' | 'Podcast' | 'Estudo';
-
-export interface User {
+export interface Author {
   id: string;
-  email: string;
-  displayName: string;
+  name: string;
   avatarUrl: string;
-  role: Role;
-  bio?: string;
-  cidade?: string;
-  igreja?: string;
-  socialLinks?: {
-    instagram?: string;
-    facebook?: string;
-  };
-  completedContentIds: string[];
-  points: number;
-  level: string;
+}
+
+export interface Comment {
+  id: string;
+  body: string;
+  author: Author;
+  createdAt: string;
+  reactions: Reaction[];
+}
+
+export type ContentType = 'Devocional' | 'Estudo' | 'Podcast' | 'Live' | 'Mentoria';
+
+export interface DownloadableResource {
+  url: string;
+  label?: string;
 }
 
 export interface ContentItem {
@@ -51,51 +42,32 @@ export interface ContentItem {
   imageUrl: string;
   type: ContentType;
   badge?: string;
-  progress?: number;
-  total?: number;
   contentBody?: string;
   audioUrl?: string;
-  actionUrl?: string;
-  duration?: number;
+  actionUrl?: string; // For Lives, Mentorships (e.g., youtube link)
   createdAt?: string;
-}
-
-export interface Category {
-  name: string;
-  filter: string;
-}
-
-export interface Comment {
-  id: string;
-  body: string;
-  author: {
-    id: string;
-    name: string;
-    avatarUrl: string;
-  };
-  createdAt: string;
-}
-
-export interface Reaction {
-  userId: string;
+  comments: Comment[];
+  reactions: Reaction[];
+  progress?: number;
+  total?: number;
+  tags?: string[];
+  duration?: number; // for podcasts, in seconds
+  downloadableResource?: DownloadableResource;
 }
 
 export interface CommunityPost {
   id: string;
-  room: 'testemunhos' | 'oracao' | 'estudos' | 'mentoria';
+  room: 'testemunhos' | 'oracao' | 'estudos';
   title: string;
   body: string;
+  author: Author;
   imageUrl?: string;
-  author: {
-    id: string;
-    name: string;
-    avatarUrl: string;
-  };
+  isAnonymous?: boolean;
   reactions: Reaction[];
   comments: Comment[];
   createdAt: string;
   savedBy?: string[];
-  isAnonymous?: boolean;
+  prayedBy?: string[];
 }
 
 export interface Notification {
@@ -106,20 +78,87 @@ export interface Notification {
   readBy: string[];
 }
 
-export interface GeneratedDevotional {
+export interface UserPlaylist {
+  id: string;
+  name: string;
+  contentIds: string[];
+}
+
+export interface User {
+  id: string;
+  email: string;
+  displayName: string;
+  avatarUrl: string;
+  role: Role;
+  status: 'active' | 'blocked';
+  completedContentIds: string[];
+  bio: string;
+  cidade: string;
+  igreja: string;
+  socialLinks: {
+    instagram?: string;
+    facebook?: string;
+  };
+  points: number;
+  level: string;
+  achievements: string[];
+  notificationSettings: {
+    commentsOnMyPost: boolean;
+    newLives: boolean;
+    newPodcasts: boolean;
+  };
+  playlists: UserPlaylist[];
+  dailyStreak: number;
+  lastLoginDate: string;
+}
+
+export interface LiveSession {
+  id: string;
   title: string;
-  verseReference: string;
-  context: string;
-  reflection: string;
-  application: string[];
-  prayer: string;
-  weeklyChallenge: string;
-  journalPrompts: string[];
-  keywords: string[];
+  description: string;
+  youtubeId: string;
+  status: 'upcoming' | 'live' | 'past';
+  scheduledAt: string;
+  reactions: Reaction[];
+  comments: Comment[];
+  createdBy?: string;
+}
+
+export interface GeneratedDevotional {
+    title: string;
+    verseReference: string;
+    context: string;
+    reflection: string;
+    application: string[];
+    prayer: string;
+    weeklyChallenge: string;
+    journalPrompts: string[];
+    keywords: string[];
+}
+
+export interface LogoSettings {
+    displayMode: 'image-with-text' | 'image-only' | 'text-only';
+    lightThemeUrl?: string;
+    darkThemeUrl?: string;
+    siteTitle?: string;
+}
+
+export interface FontSettings {
+    headingFont: string;
+    bodyFont: string;
+}
+
+export interface ThemeColors {
+    lightBg: string;
+    lightComponentBg: string;
+    lightText: string;
+    darkComponentBg: string;
+    darkBg: string;
+    accent: string;
 }
 
 export interface AppearanceSettings {
-  heroData: {
+  heroData?: {
     title: string;
     subtitle: string;
     description: string;
@@ -131,33 +170,25 @@ export interface AppearanceSettings {
     date: string;
     content: GeneratedDevotional;
   };
+  logoSettings?: LogoSettings;
+  fontSettings?: FontSettings;
+  faviconUrl?: string;
+  themeColors?: ThemeColors;
+  useBackgroundImage?: boolean;
+  backgroundImageUrl?: string;
 }
 
-export interface LiveSession {
-  id: string;
-  title: string;
-  description: string;
-  youtubeId: string;
-  status: 'upcoming' | 'live' | 'past';
-  scheduledAt: string;
-  createdBy?: string;
+export interface Category {
+  name: string;
+  filter: string;
 }
 
-export interface Challenge {
-  id: string;
-  title: string;
-  description: string;
-  points: number;
-  createdAt: string;
+export interface ReadingPlanDay {
+    day: number;
+    title: string;
+    passage: string;
+    content: string;
 }
-
-export interface UserChallengeCompletion {
-  id: string;
-  userId: string;
-  challengeId: string;
-  completedAt: string;
-}
-
 
 export interface ReadingPlan {
     id: string;
@@ -168,17 +199,58 @@ export interface ReadingPlan {
     days: ReadingPlanDay[];
 }
 
-export interface ReadingPlanDay {
-    day: number;
-    title: string;
-    passage: string;
-    content: string; // Markdown or HTML
-}
-
 export interface UserReadingPlanProgress {
     userId: string;
     planId: string;
     completedDays: number[];
+}
+
+export interface Event {
+    id: string;
+    title: string;
+    description: string;
+    imageUrl: string;
+    date: string;
+    location: string;
+    price: number;
+    attendeeIds: string[];
+}
+
+export interface Challenge {
+    id: string;
+    title: string;
+    description: string;
+    points: number;
+    createdAt: string;
+    theme?: string;
+    sequenceOrder?: number;
+}
+
+export interface UserChallengeCompletion {
+    id: string;
+    userId: string;
+    challengeId: string;
+    completedAt: string;
+}
+
+export interface JournalEntry {
+    id: string;
+    userId: string;
+    title: string;
+    content: string;
+    createdAt: string;
+    updatedAt: string;
+    relatedContentId?: string;
+    relatedContentTitle?: string;
+}
+
+export interface Announcement {
+    id: string;
+    message: string;
+    ctaText?: string;
+    ctaLink?: string;
+    isActive: boolean;
+    createdAt: string;
 }
 
 export interface PodcastEpisode {
@@ -187,6 +259,19 @@ export interface PodcastEpisode {
     description: string;
     audioUrl: string;
     imageUrl: string;
-    duration: number;
+    duration: number; // in seconds
     createdAt: string;
+}
+
+export interface Achievement {
+  id: string;
+  title: string;
+  description: string;
+  icon: string; // emoji or identifier
+}
+
+export interface Mission {
+  id: string;
+  title: string;
+  points: number;
 }

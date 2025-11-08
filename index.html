@@ -6,14 +6,34 @@
     <title>ELV | Assistente Espiritual</title>
     <meta name="description" content="Uma aplicação de acolhimento e orientação para mulheres em sabedoria cristã prática, oferecida pela Escola Lírios do Vale (ELV). Inclui devocionais, mentoria, comunidade e um diário espiritual privado.">
     
+    <link rel="icon" href="/favicon.ico" id="favicon-link">
+
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Playfair+Display:wght@700;900&family=Lato:wght@400;700&family=Roboto:wght@400;700&family=Lora:wght@400;700&family=Merriweather:wght@400;700&display=swap" rel="stylesheet">
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
+    <!-- Dynamic Theme Variables -->
+    <style id="dynamic-theme-vars">
+      :root {
+        --color-creme-velado: 251 248 241;
+        --color-branco-nevoa: 250 249 246;
+        --color-marrom-seiva: 92 61 46;
+        --color-verde-mata: 44 62 42;
+        --color-verde-escuro-profundo: 26 41 24;
+        --color-dourado-suave: 192 160 99;
+      }
+    </style>
+    <style id="dynamic-font-vars">
+      :root {
+        --font-heading: 'Playfair Display', serif;
+        --font-body: 'Inter', sans-serif;
+      }
+    </style>
+
     <!-- Custom Tailwind Config -->
     <script>
       tailwind.config = {
@@ -21,16 +41,16 @@
         theme: {
           extend: {
             colors: {
-              'creme-velado': '#FBF8F1',
-              'branco-nevoa': '#FAF9F6',
-              'marrom-seiva': '#5C3D2E',
-              'verde-mata': '#2C3E2A',
-              'verde-escuro-profundo': '#1A2918',
-              'dourado-suave': '#C0A063',
+              'creme-velado': 'rgb(var(--color-creme-velado) / <alpha-value>)',
+              'branco-nevoa': 'rgb(var(--color-branco-nevoa) / <alpha-value>)',
+              'marrom-seiva': 'rgb(var(--color-marrom-seiva) / <alpha-value>)',
+              'verde-mata': 'rgb(var(--color-verde-mata) / <alpha-value>)',
+              'verde-escuro-profundo': 'rgb(var(--color-verde-escuro-profundo) / <alpha-value>)',
+              'dourado-suave': 'rgb(var(--color-dourado-suave) / <alpha-value>)',
             },
             fontFamily: {
-              sans: ['Inter', 'sans-serif'],
-              serif: ['Playfair Display', 'serif'],
+              sans: ['var(--font-body)', 'sans-serif'],
+              serif: ['var(--font-heading)', 'serif'],
             },
           }
         }

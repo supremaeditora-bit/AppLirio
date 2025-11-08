@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { User, Page, Notification } from '../types';
-import { SearchIcon, BellIcon, MenuIcon, SunIcon, MoonIcon, UserCircleIcon, LogoutIcon } from './Icons';
+import { SearchIcon, BellIcon, MenuIcon, SunIcon, MoonIcon, UserCircleIcon, LogoutIcon, ShieldCheckIcon } from './Icons';
 import { useTheme } from '../hooks/useTheme';
 import { getNotifications, markNotificationAsRead } from '../services/api';
 import { logout } from '../services/authService';
@@ -21,17 +21,17 @@ export default function Header({ onToggleMobileSidebar, user, onNavigate, onTogg
     const notifRef = useRef<HTMLDivElement>(null);
     const profileMenuRef = useRef<HTMLDivElement>(null);
 
-    const fetchNotifications = async () => {
+    const fetchNotifications = useCallback(async () => {
         if (!user) return;
         const data = await getNotifications();
         setNotifications(data);
         const unread = data.filter(n => !n.readBy.includes(user.id)).length;
         setUnreadCount(unread);
-    };
+    }, [user]);
 
     useEffect(() => {
         fetchNotifications();
-    }, [user]);
+    }, [fetchNotifications]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -45,6 +45,18 @@ export default function Header({ onToggleMobileSidebar, user, onNavigate, onTogg
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, [notifRef, profileMenuRef]);
+
+    useEffect(() => {
+        const handleUpdate = () => {
+            fetchNotifications();
+        };
+
+        document.addEventListener('notificationsUpdated', handleUpdate);
+
+        return () => {
+            document.removeEventListener('notificationsUpdated', handleUpdate);
+        };
+    }, [fetchNotifications]);
 
     const handleToggleNotif = async () => {
         setProfileMenuOpen(false);
@@ -140,20 +152,33 @@ export default function Header({ onToggleMobileSidebar, user, onNavigate, onTogg
                     </button>
                     {isProfileMenuOpen && (
                         <div className="absolute right-0 mt-2 w-48 bg-branco-nevoa dark:bg-verde-mata rounded-lg shadow-2xl z-50 overflow-hidden border border-marrom-seiva/10 dark:border-creme-velado/10">
-                            <button 
-                                onClick={() => { onNavigate('profile'); setProfileMenuOpen(false); }} 
-                                className="w-full text-left flex items-center px-4 py-3 text-sm font-sans text-marrom-seiva dark:text-creme-velado hover:bg-marrom-seiva/5 dark:hover:bg-creme-velado/5"
-                            >
-                                <UserCircleIcon className="w-5 h-5 mr-3" />
-                                Meu Perfil
-                            </button>
-                            <button 
-                                onClick={handleLogout} 
-                                className="w-full text-left flex items-center px-4 py-3 text-sm font-sans text-marrom-seiva dark:text-creme-velado hover:bg-marrom-seiva/5 dark:hover:bg-creme-velado/5 border-t border-marrom-seiva/10 dark:border-creme-velado/10"
-                            >
-                                <LogoutIcon className="w-5 h-5 mr-3" />
-                                Sair
-                            </button>
+                            <div>
+                                <button 
+                                    onClick={() => { onNavigate('profile'); setProfileMenuOpen(false); }} 
+                                    className="w-full text-left flex items-center px-4 py-3 text-sm font-sans text-marrom-seiva dark:text-creme-velado hover:bg-marrom-seiva/5 dark:hover:bg-creme-velado/5"
+                                >
+                                    <UserCircleIcon className="w-5 h-5 mr-3" />
+                                    Meu Perfil
+                                </button>
+                                {user?.role === 'admin' && (
+                                    <button 
+                                        onClick={() => { onNavigate('admin'); setProfileMenuOpen(false); }} 
+                                        className="w-full text-left flex items-center px-4 py-3 text-sm font-sans text-marrom-seiva dark:text-creme-velado hover:bg-marrom-seiva/5 dark:hover:bg-creme-velado/5"
+                                    >
+                                        <ShieldCheckIcon className="w-5 h-5 mr-3" />
+                                        Administração
+                                    </button>
+                                )}
+                            </div>
+                            <div className="border-t border-marrom-seiva/10 dark:border-creme-velado/10">
+                                <button 
+                                    onClick={handleLogout} 
+                                    className="w-full text-left flex items-center px-4 py-3 text-sm font-sans text-marrom-seiva dark:text-creme-velado hover:bg-marrom-seiva/5 dark:hover:bg-creme-velado/5"
+                                >
+                                    <LogoutIcon className="w-5 h-5 mr-3" />
+                                    Sair
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>

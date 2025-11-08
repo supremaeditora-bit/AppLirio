@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { getCommunityPosts, createCommunityPost, addReactionToPost, addCommentToPost, deleteCommentFromPost } from '../services/api';
+import { getCommunityPosts, createCommunityPost, addReactionToPost, addCommentToPost, deleteCommentFromPost, addReactionToComment } from '../services/api';
 import { CommunityPost, User, Comment } from '../types';
 import Spinner from '../components/Spinner';
 import Button from '../components/Button';
 import Modal from '../components/Modal';
 import InputField from '../components/InputField';
-import { PrayingHandsIcon, ChatBubbleIcon, PaperAirplaneIcon, TrashIcon } from '../components/Icons';
+import { PrayingHandsIcon, ChatBubbleIcon, PaperAirplaneIcon, TrashIcon, HeartIcon } from '../components/Icons';
 import ConfirmationModal from '../components/ConfirmationModal';
+import SearchAndFilter from '../components/SearchAndFilter';
 
 interface StudiesProps {
     user: User | null;
@@ -14,8 +15,14 @@ interface StudiesProps {
     setHasNotifications: (has: boolean) => void;
 }
 
+const filterOptions = [
+    { value: 'recentes', label: 'Mais Recentes' },
+    { value: 'populares', label: 'Mais Populares' },
+];
+
 export default function Studies({ user }: StudiesProps) {
     const [posts, setPosts] = useState<CommunityPost[]>([]);
+    const [filteredPosts, setFilteredPosts] = useState<CommunityPost[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isCreateModalOpen, setCreateModalOpen] = useState(false);
     const [newPostTitle, setNewPostTitle] = useState('');
@@ -26,6 +33,9 @@ export default function Studies({ user }: StudiesProps) {
     const [commentToDelete, setCommentToDelete] = useState<{postId: string, comment: Comment} | null>(null);
     const [isConfirmDeleteCommentOpen, setIsConfirmDeleteCommentOpen] = useState(false);
     
+    const [searchQuery, setSearchQuery] = useState('');
+    const [activeFilter, setActiveFilter] = useState('recentes');
+
     const formatTimeAgo = (dateString: string) => {
         const date = new Date(dateString);
         const now = new Date();
@@ -42,6 +52,7 @@ export default function Studies({ user }: StudiesProps) {
     const fetchPosts = async () => {
         setIsLoading(true);
         const postData = await getCommunityPosts('estudos');
+        postData.forEach(post => post.comments.sort((a, b) => (b.reactions?.length || 0) - (a.reactions?.length || 0)));
         setPosts(postData);
         setIsLoading(false);
     };
@@ -49,6 +60,26 @@ export default function Studies({ user }: StudiesProps) {
     useEffect(() => {
         fetchPosts();
     }, []);
+
+    useEffect(() => {
+        let results = [...posts];
+        
+        if (searchQuery) {
+            const lowercasedQuery = searchQuery.toLowerCase();
+            results = results.filter(post => 
+                post.title.toLowerCase().includes(lowercasedQuery) ||
+                post.body.toLowerCase().includes(lowercasedQuery)
+            );
+        }
+
+        if (activeFilter === 'recentes') {
+            results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        } else if (activeFilter === 'populares') {
+            results.sort((a, b) => (b.reactions.length + b.comments.length) - (a.reactions.length + a.comments.length));
+        }
+        
+        setFilteredPosts(results);
+    }, [searchQuery, activeFilter, posts]);
 
     const handleCloseModal = () => {
         setCreateModalOpen(false);
@@ -104,6 +135,32 @@ export default function Studies({ user }: StudiesProps) {
         }));
         await addReactionToPost(postId, user.id);
     };
+    
+    const handleCommentReaction = async (postId: string, commentId: string) => {
+        if (!user) return;
+        
+        const updatedPosts = posts.map(p => {
+            if (p.id === postId) {
+                const updatedComments = p.comments.map(c => {
+                    if (c.id === commentId) {
+                        const reactions = c.reactions || [];
+                        const hasReacted = reactions.some(r => r.userId === user.id);
+                        const newReactions = hasReacted
+                            ? reactions.filter(r => r.userId !== user.id)
+                            : [...reactions, { userId: user.id }];
+                        return { ...c, reactions: newReactions };
+                    }
+                    return c;
+                });
+                updatedComments.sort((a, b) => (b.reactions?.length || 0) - (a.reactions?.length || 0));
+                return { ...p, comments: updatedComments };
+            }
+            return p;
+        });
+        setPosts(updatedPosts);
+
+        await addReactionToComment(postId, commentId, user.id);
+    };
 
     const handleComment = async (postId: string) => {
         if (!commentText.trim() || !user) return;
@@ -111,6 +168,7 @@ export default function Studies({ user }: StudiesProps) {
         setCommentText('');
         await addCommentToPost(postId, currentComment, user);
         fetchPosts();
+        document.dispatchEvent(new CustomEvent('notificationsUpdated'));
     };
 
     return (
@@ -120,12 +178,21 @@ export default function Studies({ user }: StudiesProps) {
                 <h1 className="font-serif text-4xl font-bold text-verde-mata dark:text-dourado-suave">Grupos de Estudo</h1>
                 <Button onClick={() => setCreateModalOpen(true)} variant="primary" className="mt-4 sm:mt-0">Iniciar Discussão</Button>
             </div>
+            
+            <SearchAndFilter
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                activeFilter={activeFilter}
+                onFilterChange={setActiveFilter}
+                filterOptions={filterOptions}
+                searchPlaceholder="Buscar por tópicos de estudo..."
+            />
 
             {isLoading ? (
                 <div className="flex justify-center items-center py-20"><Spinner /></div>
             ) : (
                 <div className="space-y-6">
-                    {posts.map(post => {
+                    {filteredPosts.length > 0 ? filteredPosts.map(post => {
                         const hasReacted = user ? post.reactions.some(r => r.userId === user.id) : false;
                         return (
                             <div key={post.id} className="bg-branco-nevoa dark:bg-verde-mata p-6 rounded-xl shadow-lg">
@@ -157,23 +224,35 @@ export default function Studies({ user }: StudiesProps) {
                                     </div>
                                 </div>
                                 <div className="mt-4 space-y-3">
-                                    {post.comments.map(comment => (
+                                    {post.comments.map(comment => {
+                                        const hasCommentReacted = user ? comment.reactions?.some(r => r.userId === user.id) : false;
+                                        return (
                                         <div key={comment.id} className="group flex items-start space-x-3 bg-creme-velado dark:bg-verde-escuro-profundo p-3 rounded-lg">
                                             <img src={comment.author.avatarUrl} alt={comment.author.name} className="w-8 h-8 rounded-full object-cover" />
                                             <div className="flex-1">
-                                                <p className="font-sans text-sm">
-                                                    <span className="font-bold text-verde-mata dark:text-creme-velado">{comment.author.name}</span>
-                                                    <span className="text-marrom-seiva/60 dark:text-creme-velado/60 ml-2">{formatTimeAgo(comment.createdAt)}</span>
-                                                </p>
-                                                <p className="font-sans text-sm text-marrom-seiva dark:text-creme-velado/90">{comment.body}</p>
+                                                 <div className="flex justify-between items-start">
+                                                    <div>
+                                                        <p className="font-sans text-sm">
+                                                            <span className="font-bold text-verde-mata dark:text-creme-velado">{comment.author.name}</span>
+                                                            <span className="text-marrom-seiva/60 dark:text-creme-velado/60 ml-2">{formatTimeAgo(comment.createdAt)}</span>
+                                                        </p>
+                                                        <p className="font-sans text-sm text-marrom-seiva dark:text-creme-velado/90">{comment.body}</p>
+                                                    </div>
+                                                    {user?.id === comment.author.id && (
+                                                        <button onClick={() => handleOpenConfirmDeleteComment(post.id, comment)} className="p-1 text-marrom-seiva/50 hover:text-red-500 dark:text-creme-velado/50 dark:hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <TrashIcon className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                <div className="mt-2">
+                                                    <button onClick={() => handleCommentReaction(post.id, comment.id)} className={`flex items-center space-x-1 text-xs font-semibold ${hasCommentReacted ? 'text-dourado-suave' : 'text-marrom-seiva/60 dark:text-creme-velado/60 hover:text-dourado-suave'}`}>
+                                                        <HeartIcon className="w-4 h-4" filled={hasCommentReacted} />
+                                                        <span>{comment.reactions?.length || 0}</span>
+                                                    </button>
+                                                </div>
                                             </div>
-                                            {user?.id === comment.author.id && (
-                                                <button onClick={() => handleOpenConfirmDeleteComment(post.id, comment)} className="p-1 text-marrom-seiva/50 hover:text-red-500 dark:text-creme-velado/50 dark:hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <TrashIcon className="w-4 h-4" />
-                                                </button>
-                                            )}
                                         </div>
-                                    ))}
+                                    )})}
                                 </div>
                                 {user && (
                                     <form onSubmit={(e) => { e.preventDefault(); handleComment(post.id); }} className="mt-4 flex items-center space-x-3">
@@ -194,7 +273,11 @@ export default function Studies({ user }: StudiesProps) {
                                 )}
                             </div>
                         )
-                    })}
+                    }) : (
+                         <div className="text-center py-10 text-marrom-seiva/70 dark:text-creme-velado/70">
+                            Nenhuma discussão encontrada.
+                        </div>
+                    )}
                 </div>
             )}
              <Modal isOpen={isCreateModalOpen} onClose={handleCloseModal} title="Criar Tópico de Estudo">

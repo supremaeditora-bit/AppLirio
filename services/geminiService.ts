@@ -1,6 +1,7 @@
+
 // FIX: Replaced incorrect React component with a proper Gemini service to resolve JSX parsing errors.
 import { GoogleGenAI, Type } from "@google/genai";
-import { GeneratedDevotional } from '../types';
+import { GeneratedDevotional, ReadingPlan } from '../types';
 
 // As per guidelines, apiKey is from process.env.
 // The app should ensure process.env.API_KEY is available.
@@ -102,5 +103,80 @@ export async function generateDevotional(): Promise<GeneratedDevotional> {
             journalPrompts: [],
             keywords: ["erro"],
         };
+    }
+}
+
+export async function generateReadingPlan(topic: string): Promise<Omit<ReadingPlan, 'id' | 'imageUrl'> | null> {
+    try {
+        const prompt = `
+            Crie um plano de leitura bíblico para mulheres cristãs sobre o tema "${topic}".
+            O plano deve ter um tom acolhedor e focar em aplicação prática para a vida diária.
+            A duração deve ser entre 5 e 7 dias.
+            Retorne a resposta EXATAMENTE no formato JSON definido no schema.
+            O campo 'content' para cada dia deve ser uma reflexão de 2 a 4 parágrafos em markdown simples, usando ** para negrito.
+        `;
+        
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        title: { type: Type.STRING, description: "Título criativo e inspirador para o plano de leitura." },
+                        description: { type: Type.STRING, description: "Descrição curta (2-3 linhas) sobre o propósito do plano." },
+                        durationDays: { type: Type.INTEGER, description: "O número total de dias do plano (entre 5 e 7)." },
+                        days: {
+                            type: Type.ARRAY,
+                            description: "Uma lista de objetos, um para cada dia do plano.",
+                            items: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    day: { type: Type.INTEGER, description: "O número do dia (1, 2, 3...)." },
+                                    title: { type: Type.STRING, description: "Um título curto para a reflexão do dia." },
+                                    passage: { type: Type.STRING, description: "A referência bíblica principal para o dia (ex: 'Salmos 23:1-3')." },
+                                    content: { type: Type.STRING, description: "A reflexão do dia com 2-4 parágrafos, em markdown simples (**negrito**)." },
+                                },
+                                required: ["day", "title", "passage", "content"]
+                            }
+                        }
+                    },
+                    required: ["title", "description", "durationDays", "days"]
+                },
+            },
+        });
+        
+        const jsonStr = response.text.trim();
+        const planData = JSON.parse(jsonStr) as Omit<ReadingPlan, 'id' | 'imageUrl'>;
+        
+        // Data sanitization and validation to make the feature more robust.
+        if (!planData || !planData.days || !Array.isArray(planData.days)) {
+            console.error("AI did not return a valid 'days' array.", planData);
+            throw new Error("A IA retornou dados em um formato inesperado.");
+        }
+
+        // Correct the duration to match the actual number of days returned by the AI.
+        // This prevents errors if the AI is inconsistent.
+        planData.durationDays = planData.days.length;
+
+        // Ensure each day has the required fields and correct day number.
+        planData.days = planData.days.map((day, index) => ({
+            day: index + 1, // Overwrite day number for consistency
+            title: day.title || `Reflexão para o Dia ${index + 1}`,
+            passage: day.passage || "A ser definido",
+            content: day.content || "Conteúdo a ser adicionado.",
+        }));
+
+        if (!planData.title || planData.days.length === 0) {
+            console.error("AI returned malformed plan data:", planData);
+            throw new Error("Dados do plano gerado pela IA estão incompletos ou malformados.");
+        }
+
+        return planData;
+
+    } catch (error) {
+        console.error("Error calling Gemini API for reading plan:", error);
+        return null;
     }
 }

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { ReadingPlan, UserReadingPlanProgress } from '../types';
 import ProgressBar from './ProgressBar';
@@ -16,7 +15,7 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, progress, onClick }) => {
   return (
     <div onClick={onClick} className="group cursor-pointer">
       <div className="relative aspect-[4/3] rounded-xl overflow-hidden shadow-lg bg-creme-velado dark:bg-verde-mata">
-        <img src={plan.imageUrl} alt={plan.title} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+        <img src={plan.imageUrl} alt={plan.title} loading="lazy" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
             <PlayCircleIcon className="w-20 h-20 text-white/80" />
@@ -36,4 +35,4 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, progress, onClick }) => {
   );
 };
 
-export default PlanCard;
+export default React.memo(PlanCard);

@@ -7,6 +7,7 @@ import ContentCard from '../components/ContentCard';
 import Button from '../components/Button';
 import ContentForm from '../components/admin/ContentForm';
 import { PlusIcon, BookOpenIcon } from '../components/Icons';
+import SearchAndFilter from '../components/SearchAndFilter';
 
 interface DevotionalsProps {
   onViewDetail: (id: string) => void;
@@ -14,12 +15,21 @@ interface DevotionalsProps {
   onUserUpdate: (updatedData: Partial<User>) => Promise<void>;
 }
 
+const filterOptions = [
+  { value: 'recentes', label: 'Mais Recentes' },
+  { value: 'antigos', label: 'Mais Antigos' },
+];
+
 export default function Devotionals({ onViewDetail, user, onUserUpdate }: DevotionalsProps) {
   const [items, setItems] = useState<ContentItem[]>([]);
+  const [filteredItems, setFilteredItems] = useState<ContentItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [dailyDevotional, setDailyDevotional] = useState<GeneratedDevotional | null>(null);
   
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeFilter, setActiveFilter] = useState('recentes');
+
   const canCreate = user && (user.role === 'admin' || user.role === 'mentora');
 
   const fetchItems = async () => {
@@ -54,6 +64,26 @@ export default function Devotionals({ onViewDetail, user, onUserUpdate }: Devoti
     fetchItemsAndSettings();
   }, []);
 
+  useEffect(() => {
+    let results = [...items];
+    
+    if (searchQuery) {
+        const lowercasedQuery = searchQuery.toLowerCase();
+        results = results.filter(item => 
+            item.title.toLowerCase().includes(lowercasedQuery) ||
+            item.description.toLowerCase().includes(lowercasedQuery)
+        );
+    }
+
+    if (activeFilter === 'recentes') {
+        results.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+    } else if (activeFilter === 'antigos') {
+        results.sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
+    }
+    
+    setFilteredItems(results);
+  }, [searchQuery, activeFilter, items]);
+
   const handleFormClose = () => {
     setIsFormOpen(false);
     setIsLoading(true);
@@ -74,12 +104,21 @@ export default function Devotionals({ onViewDetail, user, onUserUpdate }: Devoti
             )}
           </div>
         </div>
+        
+        <SearchAndFilter
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            activeFilter={activeFilter}
+            onFilterChange={setActiveFilter}
+            filterOptions={filterOptions}
+            searchPlaceholder="Buscar por título ou tema..."
+        />
 
         {isLoading ? (
           <div className="flex justify-center items-center py-20"><Spinner /></div>
         ) : (
           <>
-            {dailyDevotional && (
+            {dailyDevotional && !searchQuery && (
               <section 
                 className="relative p-6 sm:p-8 rounded-2xl text-white flex flex-col justify-end min-h-[300px] bg-cover bg-center overflow-hidden mb-12" 
                 style={{backgroundImage: `linear-gradient(rgba(0,0,0,0.1), rgba(44,62,42,0.8)), url('https://images.unsplash.com/photo-1518495973542-4543?auto=format&fit=crop&w=1074&q=80')`}}
@@ -94,16 +133,22 @@ export default function Devotionals({ onViewDetail, user, onUserUpdate }: Devoti
             )}
             
             <h2 className="font-serif text-3xl font-semibold mb-6 text-verde-mata dark:text-dourado-suave">Explore Mais</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-              {items.map(item => (
-                <ContentCard 
-                  key={item.id} 
-                  item={item} 
-                  onClick={() => onViewDetail(item.id)} 
-                  isCompleted={user?.completedContentIds?.includes(item.id)}
-                />
-              ))}
-            </div>
+            {filteredItems.length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                {filteredItems.map(item => (
+                    <ContentCard 
+                    key={item.id} 
+                    item={item} 
+                    onClick={() => onViewDetail(item.id)} 
+                    isCompleted={user?.completedContentIds?.includes(item.id)}
+                    />
+                ))}
+                </div>
+            ) : (
+                <div className="text-center py-10 text-marrom-seiva/70 dark:text-creme-velado/70">
+                    Nenhum devocional encontrado.
+                </div>
+            )}
           </>
         )}
       </div>

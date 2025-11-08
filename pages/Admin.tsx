@@ -1,18 +1,19 @@
-
 import React, { useState } from 'react';
 import { User } from '../types';
 import UserManager from '../components/admin/UserManager';
 import ContentManager from '../components/admin/ContentManager';
 import ModerationManager from '../components/admin/ModerationManager';
 import AppearanceManager from '../components/admin/AppearanceManager';
-import ChallengeManager from '../components/admin/ChallengeManager';
 import Insights from '../components/admin/Insights';
+import EventManager from '../components/admin/EventManager';
+import PlanManager from '../components/admin/PlanManager';
+import AnnouncementManager from '../components/admin/AnnouncementManager';
 
 interface AdminProps {
     user: User;
 }
 
-type AdminTab = 'insights' | 'users' | 'content' | 'moderation' | 'challenges' | 'appearance';
+type AdminTab = 'insights' | 'users' | 'content' | 'moderation' | 'appearance' | 'events' | 'plans' | 'announcements';
 
 export default function Admin({ user }: AdminProps) {
     const [activeTab, setActiveTab] = useState<AdminTab>('insights');
@@ -27,10 +28,14 @@ export default function Admin({ user }: AdminProps) {
                 return <ContentManager user={user} />;
             case 'moderation':
                 return <ModerationManager />;
-            case 'challenges':
-                return <ChallengeManager />;
+            case 'events':
+                return <EventManager user={user} />;
+            case 'plans':
+                return <PlanManager user={user} />;
+            case 'announcements':
+                return <AnnouncementManager />;
             case 'appearance':
-                return <AppearanceManager />;
+                return <AppearanceManager user={user} />;
             default:
                 return null;
         }
@@ -39,7 +44,7 @@ export default function Admin({ user }: AdminProps) {
     const TabButton: React.FC<{tab: AdminTab, label: string}> = ({tab, label}) => (
         <button
             onClick={() => setActiveTab(tab)}
-            className={`py-2 px-4 font-sans font-semibold text-sm rounded-md transition-colors ${
+            className={`whitespace-nowrap py-2 px-4 font-sans font-semibold text-sm rounded-full transition-colors ${
                 activeTab === tab 
                 ? 'bg-dourado-suave text-verde-mata'
                 : 'text-marrom-seiva/70 dark:text-creme-velado/70 hover:bg-marrom-seiva/5 dark:hover:bg-creme-velado/5'
@@ -58,7 +63,9 @@ export default function Admin({ user }: AdminProps) {
                 <TabButton tab="users" label="Usuárias" />
                 <TabButton tab="content" label="Conteúdo" />
                 <TabButton tab="moderation" label="Moderação" />
-                <TabButton tab="challenges" label="Desafios" />
+                <TabButton tab="events" label="Eventos" />
+                <TabButton tab="plans" label="Planos de Leitura" />
+                <TabButton tab="announcements" label="Anúncios" />
                 <TabButton tab="appearance" label="Aparência" />
             </div>
 

@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { LiveSession, User } from '../types';
-import { getLiveSessions, deleteLiveSession } from '../services/api';
+import { LiveSession, User, Comment } from '../types';
+import { getLiveSessions, deleteLiveSession, addReactionToLiveSession, addCommentToLiveSession, addReactionToLiveComment, deleteCommentFromLiveSession } from '../services/api';
 import Spinner from '../components/Spinner';
-import { PlayCircleIcon, PencilIcon, TrashIcon, PlusIcon } from '../components/Icons';
+import { PlayCircleIcon, PencilIcon, TrashIcon, PlusIcon, HeartIcon, ChatBubbleIcon, PaperAirplaneIcon } from '../components/Icons';
 import VideoPlayer from '../components/VideoPlayer';
 import Button from '../components/Button';
 import LiveForm from '../components/LiveForm';
 import ConfirmationModal from '../components/ConfirmationModal';
+import SearchAndFilter from '../components/SearchAndFilter';
+import { POINTS_AWARD } from '../services/gamificationConstants';
 
 interface LiveSessionCardProps {
   session: LiveSession;
@@ -34,6 +36,7 @@ const LiveSessionCard: React.FC<LiveSessionCardProps> = ({ session, onSelect, is
           <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
               <PlayCircleIcon className="w-12 h-12 text-white/80 group-hover:text-white transition-colors" />
           </div>
+          {session.status === 'live' && <div className="absolute top-2 left-2 bg-red-600 text-white text-xs font-bold uppercase px-2 py-1 rounded-full">AO VIVO</div>}
         </div>
         <div className="p-4">
           <h3 className="font-serif font-bold text-verde-mata dark:text-dourado-suave line-clamp-2">{session.title}</h3>
@@ -58,152 +61,247 @@ const LiveSessionCard: React.FC<LiveSessionCardProps> = ({ session, onSelect, is
 
 interface LivesProps {
   user: User | null;
+  onUserUpdate: (updatedData: Partial<User>) => Promise<void>;
 }
 
-export default function Lives({ user }: LivesProps) {
+const filterOptions = [
+    { value: 'proximas', label: 'Próximas Lives' },
+    { value: 'passadas', label: 'Lives Passadas' },
+];
+
+export default function Lives({ user, onUserUpdate }: LivesProps) {
   const [sessions, setSessions] = useState<LiveSession[]>([]);
+  const [filteredSessions, setFilteredSessions] = useState<LiveSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedSession, setSelectedSession] = useState<LiveSession | null>(null);
   
-  // State for modals
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingSession, setEditingSession] = useState<LiveSession | null>(null);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<LiveSession | null>(null);
   
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeFilter, setActiveFilter] = useState('proximas');
+
+  const [commentText, setCommentText] = useState('');
+  const [commentToDelete, setCommentToDelete] = useState<{sessionId: string, comment: Comment} | null>(null);
+  const [isConfirmDeleteCommentOpen, setIsConfirmDeleteCommentOpen] = useState(false);
+  
   const canManage = user && (user.role === 'admin' || user.role === 'mentora');
+
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const seconds = Math.round((now.getTime() - date.getTime()) / 1000);
+    if (seconds < 60) return `agora`;
+    const minutes = Math.round(seconds / 60);
+    if (minutes < 60) return `há ${minutes}min`;
+    const hours = Math.round(minutes / 60);
+    if (hours < 24) return `há ${hours}h`;
+    const days = Math.round(hours / 24);
+    return `há ${days}d`;
+  };
 
   const fetchSessions = async () => {
     setIsLoading(true);
     const data = await getLiveSessions();
+    data.forEach(s => s.comments.sort((a,b) => (b.reactions?.length || 0) - (a.reactions?.length || 0)));
     setSessions(data);
-    if (data.length > 0 && !selectedSession) {
-      const liveOrUpcoming = data.find(s => s.status !== 'past') || data[0];
-      setSelectedSession(liveOrUpcoming);
-    } else if (data.length === 0) {
-      setSelectedSession(null);
+
+    const liveSession = data.find(s => s.status === 'live');
+    
+    if (liveSession) {
+        setSelectedSession(liveSession);
+    } else {
+        const currentSelectedIsValid = selectedSession && data.some(s => s.id === selectedSession.id);
+        if (!currentSelectedIsValid) {
+            const defaultSession = data.find(s => s.status !== 'past') || data[0] || null;
+            setSelectedSession(defaultSession);
+        }
     }
+    
     setIsLoading(false);
   };
 
   useEffect(() => {
     fetchSessions();
   }, []);
+  
+  useEffect(() => {
+    let results = [...sessions];
+    
+    if (activeFilter === 'proximas') {
+        results = results.filter(s => s.status !== 'past').sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
+    } else if (activeFilter === 'passadas') {
+        results = results.filter(s => s.status === 'past').sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime());
+    }
+    
+    if (searchQuery) {
+        const lowercasedQuery = searchQuery.toLowerCase();
+        results = results.filter(session => 
+            session.title.toLowerCase().includes(lowercasedQuery) ||
+            session.description.toLowerCase().includes(lowercasedQuery)
+        );
+    }
+    
+    setFilteredSessions(results);
+  }, [searchQuery, activeFilter, sessions]);
 
   const handleOpenForm = (session: LiveSession | null) => {
-    setEditingSession(session);
-    setIsFormOpen(true);
+      setEditingSession(session);
+      setIsFormOpen(true);
   };
 
   const handleCloseForm = () => {
-    setIsFormOpen(false);
-    setEditingSession(null);
-    fetchSessions(); // Refresh data after C/U
+      setEditingSession(null);
+      setIsFormOpen(false);
+      fetchSessions();
   };
 
   const handleOpenConfirm = (session: LiveSession) => {
-    setSessionToDelete(session);
-    setIsConfirmOpen(true);
+      setSessionToDelete(session);
+      setIsConfirmOpen(true);
+  };
+
+  const handleDelete = async () => {
+      if (sessionToDelete) {
+          await deleteLiveSession(sessionToDelete.id);
+          setIsConfirmOpen(false);
+          setSessionToDelete(null);
+          fetchSessions();
+      }
   };
   
-  const handleDelete = async () => {
-    if (sessionToDelete) {
-      await deleteLiveSession(sessionToDelete.id);
-      setIsConfirmOpen(false);
-      setSessionToDelete(null);
-      // If the deleted session was the selected one, clear selection
-      if (selectedSession?.id === sessionToDelete.id) {
-        setSelectedSession(null);
-      }
-      fetchSessions(); // Refresh data after D
-    }
+  const handleCommentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!commentText.trim() || !user || !selectedSession) return;
+    await addCommentToLiveSession(selectedSession.id, commentText, user);
+    const updatedUser = {...user, points: user.points + POINTS_AWARD.POST_COMMENT };
+    onUserUpdate(updatedUser);
+    setCommentText('');
+    fetchSessions();
   };
 
-  const upcomingSessions = sessions.filter(s => s.status !== 'past').sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
-  const pastSessions = sessions.filter(s => s.status === 'past').sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime());
+  const handleCommentReaction = async (commentId: string) => {
+      if (!user || !selectedSession) return;
+      await addReactionToLiveComment(selectedSession.id, commentId, user.id);
+      fetchSessions();
+  };
 
-  if (isLoading && sessions.length === 0) {
-    return <div className="flex justify-center items-center h-full"><Spinner /></div>;
-  }
+  const handleOpenDeleteConfirmComment = (comment: Comment) => {
+      if (!selectedSession) return;
+      setCommentToDelete({ sessionId: selectedSession.id, comment });
+      setIsConfirmDeleteCommentOpen(true);
+  };
+
+  const handleDeleteComment = async () => {
+      if (!commentToDelete) return;
+      await deleteCommentFromLiveSession(commentToDelete.sessionId, commentToDelete.comment.id);
+      setIsConfirmDeleteCommentOpen(false);
+      setCommentToDelete(null);
+      fetchSessions();
+  };
 
   return (
     <>
-      <div className="container mx-auto p-4 sm:p-8 space-y-12">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
-            <div>
-              <h1 className="font-serif text-4xl font-bold text-verde-mata dark:text-dourado-suave mb-2">Lives</h1>
-              <p className="font-sans text-lg text-marrom-seiva/80 dark:text-creme-velado/70">Assista nossas transmissões e reveja as gravações.</p>
-            </div>
+      <div className="container mx-auto p-4 sm:p-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
+            <h1 className="font-serif text-4xl font-bold text-verde-mata dark:text-dourado-suave">Lives</h1>
             {canManage && (
-              <Button onClick={() => handleOpenForm(null)} className="mt-4 sm:mt-0">
-                  <PlusIcon className="w-5 h-5 mr-2" />
-                  Nova Live
-              </Button>
+                <Button onClick={() => handleOpenForm(null)} className="mt-4 sm:mt-0">
+                    <PlusIcon className="w-5 h-5 mr-2" />
+                    Agendar Live
+                </Button>
             )}
         </div>
+        
+        <SearchAndFilter
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            activeFilter={activeFilter}
+            onFilterChange={setActiveFilter}
+            filterOptions={filterOptions}
+            searchPlaceholder="Buscar por lives..."
+        />
+        
+        {isLoading ? (
+          <div className="flex justify-center items-center py-20"><Spinner /></div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            {selectedSession ? (
+              <div className="lg:col-span-3">
+                <div className="bg-branco-nevoa dark:bg-verde-mata rounded-2xl shadow-xl overflow-hidden mb-6">
+                  <VideoPlayer youtubeId={selectedSession.youtubeId} />
+                  <div className="p-6">
+                    {selectedSession.status === 'live' && <p className="font-sans font-bold text-red-500 uppercase text-sm mb-2">● AO VIVO</p>}
+                    <h2 className="font-serif text-3xl font-bold text-verde-mata dark:text-dourado-suave">{selectedSession.title}</h2>
+                    <p className="font-sans text-marrom-seiva/80 dark:text-creme-velado/80 mt-2">{selectedSession.description}</p>
+                  </div>
+                </div>
 
-        {selectedSession && (
-          <section>
-            <VideoPlayer youtubeId={selectedSession.youtubeId} />
-            <div className="mt-4">
-              <span className={`inline-block px-3 py-1 text-xs font-semibold rounded-full mb-2 ${
-                  selectedSession.status === 'past' ? 'bg-marrom-seiva/20 text-marrom-seiva dark:bg-creme-velado/20 dark:text-creme-velado' : 'bg-red-500/20 text-red-600 dark:bg-red-400/20 dark:text-red-400'
-              }`}>
-                  {selectedSession.status === 'past' ? 'Gravada' : selectedSession.status === 'live' ? 'AO VIVO' : 'Agendada'}
-              </span>
-              <h2 className="font-serif text-3xl font-bold text-verde-mata dark:text-dourado-suave mt-2">{selectedSession.title}</h2>
-              <p className="font-sans text-marrom-seiva/80 dark:text-creme-velado/80 mt-2">{selectedSession.description}</p>
-            </div>
-          </section>
-        )}
-
-        {upcomingSessions.length > 0 && (
-          <section>
-            <h2 className="font-serif text-3xl font-semibold mb-6 text-verde-mata dark:text-dourado-suave">Próximas Lives</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {upcomingSessions.map(session => (
-                <LiveSessionCard key={session.id} session={session} onSelect={setSelectedSession} isSelected={selectedSession?.id === session.id} canManage={!!canManage} onEdit={handleOpenForm} onDelete={handleOpenConfirm} />
+                {/* Chat Section */}
+                <div>
+                  <h3 className="font-serif text-2xl font-bold text-verde-mata dark:text-dourado-suave mb-4">Chat</h3>
+                  {user && (
+                      <form onSubmit={handleCommentSubmit} className="mb-6 flex items-start space-x-3">
+                          <img src={user.avatarUrl} alt={user.displayName} className="w-10 h-10 rounded-full object-cover"/>
+                          <div className="flex-1 relative">
+                              <textarea placeholder="Participe do chat..." value={commentText} onChange={(e) => setCommentText(e.target.value)} className="w-full font-sans bg-branco-nevoa dark:bg-verde-mata border-2 border-marrom-seiva/20 dark:border-creme-velado/20 rounded-xl p-3 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-dourado-suave" rows={2}/>
+                              <button type="submit" className="absolute right-3 bottom-3 p-2 rounded-full text-dourado-suave hover:bg-dourado-suave/10 disabled:opacity-50" disabled={!commentText.trim()}><PaperAirplaneIcon className="w-5 h-5" /></button>
+                          </div>
+                      </form>
+                  )}
+                  <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
+                    {selectedSession.comments.map(comment => (
+                        <div key={comment.id} className="group flex items-start space-x-3">
+                           {/* ... comment structure ... */}
+                        </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="lg:col-span-3 flex items-center justify-center h-full bg-branco-nevoa dark:bg-verde-mata rounded-2xl p-8">
+                <p className="font-sans text-marrom-seiva/70 dark:text-creme-velado/70 text-center">Nenhuma live encontrada ou selecionada.</p>
+              </div>
+            )}
+            
+            <div className="lg:col-span-1 space-y-4">
+              {filteredSessions.map(session => (
+                <LiveSessionCard
+                  key={session.id}
+                  session={session}
+                  onSelect={setSelectedSession}
+                  isSelected={selectedSession?.id === session.id}
+                  canManage={!!canManage}
+                  onEdit={handleOpenForm}
+                  onDelete={handleOpenConfirm}
+                />
               ))}
             </div>
-          </section>
-        )}
 
-        {pastSessions.length > 0 && (
-          <section>
-            <h2 className="font-serif text-3xl font-semibold mb-6 text-verde-mata dark:text-dourado-suave">Lives Anteriores</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {pastSessions.map(session => (
-                <LiveSessionCard key={session.id} session={session} onSelect={setSelectedSession} isSelected={selectedSession?.id === session.id} canManage={!!canManage} onEdit={handleOpenForm} onDelete={handleOpenConfirm} />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {sessions.length === 0 && !isLoading && (
-          <div className="text-center p-8 bg-branco-nevoa dark:bg-verde-mata rounded-2xl">
-              <p className="font-sans text-marrom-seiva/70 dark:text-creme-velado/70">Nenhuma live programada no momento.</p>
           </div>
         )}
       </div>
 
       {canManage && user && (
-        <LiveForm 
-          isOpen={isFormOpen}
-          onClose={handleCloseForm}
-          session={editingSession}
-          user={user}
-        />
+          <LiveForm
+              isOpen={isFormOpen}
+              onClose={handleCloseForm}
+              session={editingSession}
+              user={user}
+          />
       )}
       
       {sessionToDelete && (
-        <ConfirmationModal
-          isOpen={isConfirmOpen}
-          onClose={() => setIsConfirmOpen(false)}
-          onConfirm={handleDelete}
-          title="Confirmar Exclusão"
-          message={`Tem certeza que deseja excluir a live "${sessionToDelete.title}"?`}
-          confirmText="Excluir"
-        />
+          <ConfirmationModal
+              isOpen={isConfirmOpen}
+              onClose={() => setIsConfirmOpen(false)}
+              onConfirm={handleDelete}
+              title="Confirmar Exclusão"
+              message={`Tem certeza que deseja excluir a live "${sessionToDelete.title}"?`}
+              confirmText="Excluir"
+          />
       )}
     </>
   );

@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Page, User } from '../types';
 import { createCommunityPost } from '../services/api';
+import { uploadImage } from '../services/storageService';
 import Button from '../components/Button';
 import Spinner from '../components/Spinner';
+import { PhotoIcon } from '@heroicons/react/24/outline';
 
 interface PublishTestimonialProps {
   user: User | null;
@@ -13,19 +15,51 @@ export default function PublishTestimonial({ user, onNavigate }: PublishTestimon
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+
   const MAX_CHARS = 5000;
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setSelectedImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handlePublish = async () => {
     if (!body.trim() || !user) return;
     setIsLoading(true);
-    await createCommunityPost({
-        room: 'testemunhos',
-        title: title || 'Um testemunho de fé',
-        body,
-        authorId: user.id
-    });
-    setIsLoading(false);
-    onNavigate('testimonials');
+    setUploadProgress(0);
+    
+    let imageUrl: string | undefined = undefined;
+
+    try {
+        if (selectedImageFile) {
+            imageUrl = await uploadImage(selectedImageFile, user.id, setUploadProgress);
+        }
+
+        await createCommunityPost({
+            room: 'testemunhos',
+            title: title || 'Um testemunho de fé',
+            body,
+            authorId: user.id,
+            imageUrl: imageUrl
+        });
+        
+        onNavigate('testimonials');
+    } catch (error) {
+        console.error("Failed to publish testimonial", error);
+        alert("Ocorreu um erro ao publicar. Tente novamente.");
+    } finally {
+        setIsLoading(false);
+    }
   };
 
   return (
@@ -74,6 +108,28 @@ export default function PublishTestimonial({ user, onNavigate }: PublishTestimon
                     <p className="text-right text-sm font-sans text-marrom-seiva/60 dark:text-creme-velado/60 mt-1">
                         {body.length}/{MAX_CHARS}
                     </p>
+                </div>
+                <div>
+                    <label className="font-sans font-semibold text-marrom-seiva dark:text-creme-velado/80">Adicionar Imagem (opcional)</label>
+                    <div className="mt-2 flex items-center justify-center w-full">
+                        <label htmlFor="image-upload" className="flex flex-col items-center justify-center w-full h-48 border-2 border-marrom-seiva/30 dark:border-creme-velado/30 border-dashed rounded-lg cursor-pointer bg-branco-nevoa/50 dark:bg-verde-mata/50 hover:bg-creme-velado/80 dark:hover:bg-verde-escuro-profundo/80">
+                            {imagePreview ? (
+                                <img src={imagePreview} alt="Pré-visualização" className="w-full h-full object-cover rounded-lg" />
+                            ) : (
+                                <div className="flex flex-col items-center justify-center pt-5 pb-6 text-marrom-seiva/70 dark:text-creme-velado/70">
+                                    <PhotoIcon className="w-10 h-10 mb-3" />
+                                    <p className="mb-2 text-sm"><span className="font-semibold">Clique para enviar</span> ou arraste e solte</p>
+                                    <p className="text-xs">PNG, JPG ou WEBP</p>
+                                </div>
+                            )}
+                            <input id="image-upload" type="file" className="hidden" accept="image/*" onChange={handleImageChange} />
+                        </label>
+                    </div>
+                     {(uploadProgress > 0 && uploadProgress < 100) && (
+                        <div className="mt-2">
+                            <div className="w-full bg-marrom-seiva/20 rounded-full h-1.5"><div className="bg-dourado-suave h-1.5 rounded-full" style={{ width: `${uploadProgress}%` }}></div></div>
+                        </div>
+                    )}
                 </div>
             </div>
         </main>

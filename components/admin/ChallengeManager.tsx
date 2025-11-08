@@ -101,8 +101,8 @@ export default function ChallengeManager() {
           onClose={() => setIsConfirmOpen(false)}
           onConfirm={handleDelete}
           title="Confirmar Exclusão"
-          message={`Tem certeza que deseja arquivar o desafio "${selectedItem.title}"?`}
-          confirmText="Arquivar"
+          message={`Tem certeza que deseja excluir o desafio "${selectedItem.title}"?`}
+          confirmText="Excluir"
         />
       )}
     </>

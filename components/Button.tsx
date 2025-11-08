@@ -1,6 +1,5 @@
 import React, { ReactNode } from 'react';
 
-// FIX: Changed from interface to type with intersection to fix type inference for rest props.
 type ButtonProps = {
   children: ReactNode;
   variant?: 'primary' | 'secondary';
@@ -8,7 +7,7 @@ type ButtonProps = {
   className?: string;
 } & React.ButtonHTMLAttributes<HTMLButtonElement>;
 
-export default function Button({ children, variant = 'primary', fullWidth = false, className = '', ...props }: ButtonProps) {
+const Button: React.FC<ButtonProps> = ({ children, variant = 'primary', fullWidth = false, className = '', ...props }) => {
   const baseClasses = "flex items-center justify-center font-sans font-bold py-3 px-6 rounded-full text-base transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-verde-mata";
 
   const variantClasses = {
@@ -28,4 +27,6 @@ export default function Button({ children, variant = 'primary', fullWidth = fals
       {children}
     </button>
   );
-}
+};
+
+export default React.memo(Button);

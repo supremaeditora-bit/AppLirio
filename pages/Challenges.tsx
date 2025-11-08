@@ -85,6 +85,26 @@ export default function Challenges({ user, onUserUpdate }: ChallengesProps) {
     }
   };
 
+  // FIX: The original `reduce` was incorrectly typed, leading to `groupedChallenges`
+  // having a type that caused a downstream error on `.map()`. This is fixed by
+  // correctly typing the initial value of the accumulator. The sorting logic was also
+  // moved outside the reduce loop for better performance.
+  // FIX: Correctly typed the `reduce` operation for `groupedChallenges` by explicitly typing the variable. This ensures that the accumulator and the final result have the correct type, resolving downstream errors where `.sort()` and `.map()` were called on values inferred as `unknown`.
+  const groupedChallenges: Record<string, Challenge[]> = challenges.reduce((acc, challenge) => {
+    const theme = challenge.theme || 'Desafios Gerais';
+    if (!acc[theme]) {
+      acc[theme] = [];
+    }
+    acc[theme].push(challenge);
+    return acc;
+  }, {});
+
+  // Sort challenges within each theme after grouping.
+  Object.values(groupedChallenges).forEach(group => {
+    group.sort((a, b) => (a.sequenceOrder || 0) - (b.sequenceOrder || 0));
+  });
+
+
   if (isLoading) {
     return <div className="flex justify-center items-center h-full"><Spinner /></div>;
   }
@@ -98,17 +118,25 @@ export default function Challenges({ user, onUserUpdate }: ChallengesProps) {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {challenges.map(challenge => (
-          <ChallengeCard
-            key={challenge.id}
-            challenge={challenge}
-            isCompleted={completions.some(c => c.challengeId === challenge.id)}
-            onComplete={() => handleCompleteChallenge(challenge)}
-            isLoading={completingId === challenge.id}
-          />
+      <div className="space-y-12">
+        {Object.entries(groupedChallenges).map(([theme, themeChallenges]) => (
+            <section key={theme}>
+                <h2 className="font-serif text-3xl font-semibold mb-6 text-verde-mata dark:text-dourado-suave">{theme}</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {themeChallenges.map(challenge => (
+                        <ChallengeCard
+                            key={challenge.id}
+                            challenge={challenge}
+                            isCompleted={completions.some(c => c.challengeId === challenge.id)}
+                            onComplete={() => handleCompleteChallenge(challenge)}
+                            isLoading={completingId === challenge.id}
+                        />
+                    ))}
+                </div>
+            </section>
         ))}
       </div>
+
        {challenges.length === 0 && !isLoading && (
           <div className="text-center p-8 bg-branco-nevoa dark:bg-verde-mata rounded-2xl">
               <p className="font-sans text-marrom-seiva/70 dark:text-creme-velado/70">Nenhum desafio disponível no momento. Volte em breve!</p>

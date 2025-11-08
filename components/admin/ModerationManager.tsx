@@ -4,12 +4,24 @@ import { getAllCommunityPostsForAdmin, deleteCommunityPost } from '../../service
 import Spinner from '../Spinner';
 import ConfirmationModal from '../ConfirmationModal';
 import { TrashIcon } from '../Icons';
+import SearchAndFilter from '../SearchAndFilter';
+
+const filterOptions = [
+    { value: 'all', label: 'Todas as Salas' },
+    { value: 'testemunhos', label: 'Testemunhos' },
+    { value: 'oracao', label: 'Oração' },
+    { value: 'estudos', label: 'Estudos' },
+];
 
 export default function ModerationManager() {
   const [posts, setPosts] = useState<CommunityPost[]>([]);
+  const [filteredPosts, setFilteredPosts] = useState<CommunityPost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [postToDelete, setPostToDelete] = useState<CommunityPost | null>(null);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeFilter, setActiveFilter] = useState('all');
 
   const fetchPosts = async () => {
     setIsLoading(true);
@@ -21,6 +33,25 @@ export default function ModerationManager() {
   useEffect(() => {
     fetchPosts();
   }, []);
+
+  useEffect(() => {
+    let results = [...posts];
+    
+    if (searchQuery) {
+        const lowercasedQuery = searchQuery.toLowerCase();
+        results = results.filter(post => 
+            post.title.toLowerCase().includes(lowercasedQuery) ||
+            post.body.toLowerCase().includes(lowercasedQuery) ||
+            post.author.name.toLowerCase().includes(lowercasedQuery)
+        );
+    }
+
+    if (activeFilter !== 'all') {
+        results = results.filter(post => post.room === activeFilter);
+    }
+    
+    setFilteredPosts(results);
+  }, [searchQuery, activeFilter, posts]);
 
   const handleOpenConfirm = (post: CommunityPost) => {
     setPostToDelete(post);
@@ -55,10 +86,18 @@ export default function ModerationManager() {
 
   return (
     <>
+      <h2 className="font-serif text-2xl font-semibold text-verde-mata dark:text-dourado-suave mb-4">Moderar Posts da Comunidade</h2>
+      <SearchAndFilter
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        activeFilter={activeFilter}
+        onFilterChange={setActiveFilter}
+        filterOptions={filterOptions}
+        searchPlaceholder="Buscar por título, conteúdo ou autora..."
+      />
       <div className="bg-branco-nevoa dark:bg-verde-mata p-6 rounded-xl shadow-lg">
-        <h2 className="font-serif text-2xl font-semibold text-verde-mata dark:text-dourado-suave mb-4">Moderar Posts da Comunidade</h2>
         <div className="space-y-4">
-          {posts.map(post => (
+          {filteredPosts.map(post => (
             <div key={post.id} className="border border-marrom-seiva/10 dark:border-creme-velado/10 p-4 rounded-lg flex items-start justify-between">
               <div>
                 <div className="flex items-center space-x-2">
