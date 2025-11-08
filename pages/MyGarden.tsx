@@ -51,7 +51,7 @@ export default function MyGarden({ user }: MyGardenProps) {
     return (
         <div className="container mx-auto p-4 sm:p-6 md:p-8 space-y-12">
             <header className="text-center">
-                <h1 className="font-serif text-4xl sm:text-5xl font-bold text-verde-mata dark:text-dourado-suave">Meu Jardim da Alma</h1>
+                <h1 className="font-serif text-4xl sm:text-5xl font-bold text-gradient">Meu Jardim da Alma</h1>
                 <p className="font-sans text-lg text-marrom-seiva/80 dark:text-creme-velado/80 mt-2 max-w-2xl mx-auto">
                     Acompanhe seu crescimento espiritual e veja seu jardim florescer a cada passo da jornada.
                 </p>
@@ -81,7 +81,7 @@ export default function MyGarden({ user }: MyGardenProps) {
             </section>
             
             <section>
-                <h2 className="font-serif text-3xl font-semibold mb-6 text-verde-mata dark:text-dourado-suave">Missões da Semana</h2>
+                <h2 className="font-serif text-3xl font-semibold mb-6 text-gradient">Missões da Semana</h2>
                 <div className="space-y-4">
                     {missions.map(mission => (
                         <div key={mission.id} className="bg-branco-nevoa dark:bg-verde-mata p-4 rounded-xl shadow flex justify-between items-center">
@@ -96,7 +96,7 @@ export default function MyGarden({ user }: MyGardenProps) {
             </section>
 
             <section>
-                <h2 className="font-serif text-3xl font-semibold mb-6 text-verde-mata dark:text-dourado-suave">Flores Raras (Conquistas)</h2>
+                <h2 className="font-serif text-3xl font-semibold mb-6 text-gradient">Flores Raras (Conquistas)</h2>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {achievements.map(ach => (
                         <AchievementCard key={ach.id} achievement={ach} isUnlocked={user.achievements.includes(ach.id)} />

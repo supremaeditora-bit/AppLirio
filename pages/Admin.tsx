@@ -56,7 +56,7 @@ export default function Admin({ user }: AdminProps) {
 
     return (
         <div className="container mx-auto p-4 sm:p-8">
-            <h1 className="font-serif text-4xl font-bold text-verde-mata dark:text-dourado-suave mb-8">Painel de Administração</h1>
+            <h1 className="font-serif text-4xl font-bold text-gradient mb-8">Painel de Administração</h1>
             
             <div className="mb-6 flex items-center space-x-2 border-b border-marrom-seiva/10 dark:border-creme-velado/10 overflow-x-auto scrollbar-hide pb-2">
                 <TabButton tab="insights" label="Insights" />

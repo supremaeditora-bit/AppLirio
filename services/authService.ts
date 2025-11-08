@@ -1,132 +1,161 @@
-// services/authService.ts
-
-// This file is now a mock authentication service to align with the mock data layer.
-// It simulates Firebase Auth behavior without making real API calls for email/password.
-
-import { User as FirebaseUser } from 'firebase/auth'; 
+import { supabase, getProfile, areCredentialsSet } from './supabaseClient';
 import { User } from '../types';
-import { mockUsers } from '../data/mockData';
+import { POINTS_AWARD } from './gamificationConstants';
 
-// --- Mock Auth State ---
-let currentMockUser: User | null = null;
-// The listener callback expects a FirebaseUser-like object or null.
-const listeners: ((user: FirebaseUser | null) => void)[] = [];
+// --- Funções de Gamificação (movidas para cá para usar Supabase) ---
+export const awardAchievement = async (userId: string, achievementId: string): Promise<User | null> => {
+    if (!areCredentialsSet) return null;
+    
+     const { data: user, error: fetchError } = await supabase
+        .from('profiles')
+        .select('achievements')
+        .eq('id', userId)
+        .single();
 
-const notifyListeners = () => {
-    let userToNotify: FirebaseUser | null = null;
-    if (currentMockUser) {
-        // Create a fake FirebaseUser object that has the properties our app uses (like `uid`).
-        userToNotify = {
-            uid: currentMockUser.id,
-            email: currentMockUser.email,
-            displayName: currentMockUser.displayName,
-            photoURL: currentMockUser.avatarUrl,
-        } as FirebaseUser;
+    if (fetchError || !user) {
+        console.error("Failed to fetch user for awarding achievement", fetchError);
+        return null;
     }
-  listeners.forEach(cb => cb(userToNotify));
+
+    const currentAchievements: string[] = user.achievements || [];
+
+    if (!currentAchievements.includes(achievementId)) {
+        const newAchievements = [...currentAchievements, achievementId];
+        const { data: updatedUser, error: updateError } = await supabase
+            .from('profiles')
+            .update({ achievements: newAchievements })
+            .eq('id', userId)
+            .select()
+            .single();
+        
+        if (updateError) {
+            console.error("Failed to award achievement", updateError);
+            return null;
+        }
+        return updatedUser as User;
+    }
+    return null; // No update was needed
 };
 
-// --- Mock Auth Functions ---
+
+export const handleDailyLogin = async (user: User): Promise<User> => {
+    if (!areCredentialsSet) return user;
+
+    const today = new Date().toISOString().split('T')[0];
+    const lastLogin = user.lastLoginDate;
+
+    if (lastLogin !== today) {
+        const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+        let awardedPoints = POINTS_AWARD.DAILY_LOGIN;
+        let newStreak = user.dailyStreak || 0;
+
+        if (lastLogin === yesterday) {
+            newStreak++;
+        } else {
+            newStreak = 1;
+        }
+        
+        if (newStreak === 3) awardedPoints += POINTS_AWARD.STREAK_3_DAYS;
+        if (newStreak === 7) {
+            awardedPoints += POINTS_AWARD.STREAK_7_DAYS;
+            await awardAchievement(user.id, 'SEMPRE_FIEL');
+        }
+
+        const updatedProfileData = {
+            points: (user.points || 0) + awardedPoints,
+            daily_streak: newStreak,
+            last_login_date: today,
+        };
+
+        const { data: updatedUser, error } = await supabase
+            .from('profiles')
+            .update(updatedProfileData)
+            .eq('id', user.id)
+            .select()
+            .single();
+
+        if (error) {
+            console.error("Failed to update daily login stats", error);
+            return user; // Return original user on failure
+        }
+        return updatedUser as User;
+    }
+    return user; // No update needed
+};
+
+// --- Funções de Autenticação ---
 
 export const loginWithEmail = async (email: string, pass: string): Promise<void> => {
-    // In a mock, we ignore the password and just find the user by email
-    console.log("Attempting mock login for:", email);
-    const user = mockUsers.find(u => u.email === email);
-    if (user) {
-        currentMockUser = user;
-        notifyListeners();
-        return Promise.resolve();
-    } else {
-        // Simulate Firebase's invalid credential error
-        const error = new Error("Invalid login credentials");
-        (error as any).code = 'auth/invalid-credential';
-        return Promise.reject(error);
-    }
+    if (!areCredentialsSet) throw new Error("Supabase não configurado.");
+    const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
+    if (error) throw error;
 };
 
 export const loginWithGoogle = async (): Promise<void> => {
-    // Mock Google login to log in as the first user (Ana Sofia)
-    currentMockUser = mockUsers[0];
-    notifyListeners();
-    return Promise.resolve();
-}
+    if (!areCredentialsSet) throw new Error("Supabase não configurado.");
+    const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+            redirectTo: window.location.origin, // Redirect back to the app after login
+        },
+    });
+    if (error) throw error;
+};
 
 export const signupWithEmail = async (displayName: string, email: string, pass: string): Promise<void> => {
-     const existing = mockUsers.find(u => u.email === email);
-     if (existing) {
-         throw new Error("User already registered");
-     }
-     const newUser: User = {
-        id: `user-${Date.now()}`,
-        email: email,
-        displayName: displayName,
-        avatarUrl: `https://api.dicebear.com/8.x/initials/svg?seed=${encodeURIComponent(displayName || 'U')}`,
-        role: 'aluna',
-        status: 'active',
-        completedContentIds: [],
-        bio: '',
-        cidade: '',
-        igreja: '',
-        socialLinks: {},
-        points: 0,
-        level: 'Terra Fértil',
-        achievements: [],
-        notificationSettings: { commentsOnMyPost: true, newLives: true, newPodcasts: true },
-        playlists: [],
-        dailyStreak: 0,
-        lastLoginDate: '1970-01-01',
-     };
-     mockUsers.push(newUser);
-     currentMockUser = newUser;
-     notifyListeners();
-     return Promise.resolve();
+    if (!areCredentialsSet) throw new Error("Supabase não configurado.");
+    const { data, error } = await supabase.auth.signUp({
+        email,
+        password: pass,
+        options: {
+            data: {
+                display_name: displayName,
+                avatar_url: `https://api.dicebear.com/8.x/initials/svg?seed=${encodeURIComponent(displayName || 'U')}`
+            }
+        }
+    });
+
+    if (error) throw error;
+    if (!data.user) throw new Error("Signup succeeded but no user was returned.");
+
+    // The user profile is now created via a database trigger from the supabase_schema.sql file.
+    // This is more reliable than creating it from the client side.
 };
 
 export const logout = async (): Promise<void> => {
-    currentMockUser = null;
-    notifyListeners();
-    return Promise.resolve();
+    if (!areCredentialsSet) return;
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
 };
 
-export const onAuthUserChanged = (callback: (user: FirebaseUser | null) => void) => {
-    listeners.push(callback);
-    
-    // Immediately notify the new listener with the current state
-    let userToNotify: FirebaseUser | null = null;
-    if (currentMockUser) {
-        userToNotify = {
-            uid: currentMockUser.id,
-            email: currentMockUser.email,
-            displayName: currentMockUser.displayName,
-            photoURL: currentMockUser.avatarUrl,
-        } as FirebaseUser;
+export const onAuthUserChanged = (callback: (user: User | null) => void) => {
+    if (!areCredentialsSet) {
+        callback(null);
+        // Return a dummy subscription object to prevent errors
+        return { data: { subscription: { unsubscribe: () => {} } } };
     }
-    callback(userToNotify);
-
-    // Return an unsubscribe function
-    return () => {
-        const index = listeners.indexOf(callback);
-        if (index > -1) {
-            listeners.splice(index, 1);
+    
+    return supabase.auth.onAuthStateChange(async (event, session) => {
+        // Handle initial session and sign-in events
+        if ((event === 'INITIAL_SESSION' || event === 'SIGNED_IN') && session?.user) {
+            let userProfile = await getProfile(session.user.id);
+            if(userProfile) {
+                // Handle daily login and get the updated profile back
+                userProfile = await handleDailyLogin(userProfile);
+            }
+            callback(userProfile);
+        } else if (event === 'SIGNED_OUT') {
+            callback(null);
         }
-    };
-};
-
-// These functions can be simple mocks as well, operating on the mockUsers array.
-export const createUserProfileDocument = async (firebaseUser: any, displayName: string): Promise<void> => {
-    // This is handled by signupWithEmail in the mock setup. No-op.
-    return Promise.resolve();
+    });
 };
 
 export const updateUserProfileDocument = async (userId: string, data: Partial<User>): Promise<void> => {
-    const userIndex = mockUsers.findIndex(u => u.id === userId);
-    if(userIndex > -1) {
-        mockUsers[userIndex] = { ...mockUsers[userIndex], ...data };
-        // If the updated user is the current user, notify listeners
-        if (currentMockUser && currentMockUser.id === userId) {
-            currentMockUser = mockUsers[userIndex];
-            notifyListeners();
-        }
-    }
-    return Promise.resolve();
+    if (!areCredentialsSet) return;
+    const { error } = await supabase
+        .from('profiles')
+        .update(data)
+        .eq('id', userId);
+    
+    if (error) throw error;
 };

@@ -223,7 +223,7 @@ export default function Prayers({ user, onUserUpdate }: PrayersProps) {
         <>
             <div className="container mx-auto p-4 sm:p-8">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
-                    <h1 className="font-serif text-4xl font-bold text-verde-mata dark:text-dourado-suave">Pedidos de Oração</h1>
+                    <h1 className="font-serif text-4xl font-bold text-gradient">Pedidos de Oração</h1>
                     <Button onClick={() => handleOpenForm(null)} variant="primary" className="mt-4 sm:mt-0">Fazer um Pedido</Button>
                 </div>
 

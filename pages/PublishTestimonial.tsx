@@ -70,7 +70,7 @@ export default function PublishTestimonial({ user, onNavigate }: PublishTestimon
                     Cancelar
                 </button>
             </div>
-            <h1 className="font-serif text-xl font-bold text-verde-mata dark:text-dourado-suave">Testemunhos de Fé</h1>
+            <h1 className="font-serif text-xl font-bold text-gradient">Testemunhos de Fé</h1>
             <div className="w-24 flex justify-end">
                 <Button onClick={handlePublish} disabled={isLoading || !body.trim()} className="!py-2 !px-5">
                     {isLoading ? <Spinner variant="button" /> : 'Publicar'}
@@ -80,7 +80,7 @@ export default function PublishTestimonial({ user, onNavigate }: PublishTestimon
 
         <main className="max-w-3xl mx-auto p-4 sm:p-8">
             <div className="text-center mb-10">
-                 <h2 className="font-serif text-4xl sm:text-5xl font-bold text-verde-mata dark:text-dourado-suave">Compartilhe seu Testemunho</h2>
+                 <h2 className="font-serif text-4xl sm:text-5xl font-bold text-gradient">Compartilhe seu Testemunho</h2>
                  <p className="font-sans text-lg text-marrom-seiva/80 dark:text-creme-velado/80 mt-2">Conte-nos como Deus agiu em sua vida.</p>
             </div>
             <div className="space-y-8">

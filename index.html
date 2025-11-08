@@ -79,21 +79,28 @@
             -ms-overflow-style: none;  /* IE and Edge */
             scrollbar-width: none;  /* Firefox */
         }
+        
+        .text-gradient {
+          background-image: linear-gradient(to right, rgb(var(--color-verde-mata)), rgb(var(--color-dourado-suave)));
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+        }
+        .dark .text-gradient {
+           background-image: linear-gradient(to right, rgb(var(--color-dourado-suave)), rgb(var(--color-creme-velado)));
+        }
     </style>
     
     <script type="importmap">
 {
   "imports": {
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.28.0",
-    "firebase/app": "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js",
-    "firebase/auth": "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js",
-    "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js",
-    "firebase/storage": "https://www.gstatic.com/firebasejs/10.12.3/firebase-storage.js",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
     "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "react": "https://aistudiocdn.com/react@^19.2.0",
-    "firebase/": "https://aistudiocdn.com/firebase@^12.5.0/",
-    "@heroicons/react/": "https://aistudiocdn.com/@heroicons/react@^2.1.5/"
+    "@heroicons/react/": "https://aistudiocdn.com/@heroicons/react@^2.1.5/",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.44.4",
+    "firebase/": "https://aistudiocdn.com/firebase@^12.5.0/"
   }
 }
 </script>

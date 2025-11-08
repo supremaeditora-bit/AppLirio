@@ -88,7 +88,7 @@ export default function Home({ onNavigate, user, onViewDetail }: HomeProps) {
     <>
       <div className="p-4 sm:p-6 md:p-8 space-y-8">
         <header>
-          <h1 className="font-serif text-3xl md:text-4xl font-bold text-verde-mata dark:text-dourado-suave">
+          <h1 className="font-serif text-3xl md:text-4xl font-bold text-gradient">
             Bem-vinda, {user.displayName.split(' ')[0]}!
           </h1>
           <p className="font-sans text-marrom-seiva/80 dark:text-creme-velado/80 mt-1">

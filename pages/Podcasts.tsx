@@ -164,7 +164,7 @@ export default function Podcasts({ user, onUserUpdate }: PodcastsProps) {
       />
       <div className="container mx-auto p-4 sm:p-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
-            <h1 className="font-serif text-4xl font-bold text-verde-mata dark:text-dourado-suave">Podcasts</h1>
+            <h1 className="font-serif text-4xl font-bold text-gradient">Podcasts</h1>
             {canCreate && (
                 <Button onClick={() => setIsFormOpen(true)} className="mt-4 sm:mt-0">
                     <PlusIcon className="w-5 h-5 mr-2" />
@@ -177,7 +177,7 @@ export default function Podcasts({ user, onUserUpdate }: PodcastsProps) {
             <section className="mb-12 bg-branco-nevoa dark:bg-verde-mata p-6 rounded-2xl shadow-xl flex flex-col md:flex-row items-center gap-8">
                 <img src={currentEpisode.imageUrl} alt={currentEpisode.title} className="w-full md:w-48 h-48 rounded-lg object-cover flex-shrink-0" />
                 <div className="flex-1 w-full">
-                    <h2 className="font-serif text-3xl font-bold text-verde-mata dark:text-dourado-suave line-clamp-2">{currentEpisode.title}</h2>
+                    <h2 className="font-serif text-3xl font-bold text-gradient line-clamp-2">{currentEpisode.title}</h2>
                     <div className="mt-4 w-full">
                         <input
                             type="range"

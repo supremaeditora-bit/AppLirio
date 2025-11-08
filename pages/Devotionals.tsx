@@ -94,7 +94,7 @@ export default function Devotionals({ onViewDetail, user, onUserUpdate }: Devoti
     <>
       <div className="container mx-auto p-4 sm:p-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-          <h1 className="font-serif text-4xl font-bold text-verde-mata dark:text-dourado-suave">Devocionais</h1>
+          <h1 className="font-serif text-4xl font-bold text-gradient">Devocionais</h1>
           <div className="flex items-center gap-4">
             {canCreate && (
               <Button onClick={() => setIsFormOpen(true)}>
@@ -132,7 +132,7 @@ export default function Devotionals({ onViewDetail, user, onUserUpdate }: Devoti
               </section>
             )}
             
-            <h2 className="font-serif text-3xl font-semibold mb-6 text-verde-mata dark:text-dourado-suave">Explore Mais</h2>
+            <h2 className="font-serif text-3xl font-semibold mb-6 text-gradient">Explore Mais</h2>
             {filteredItems.length > 0 ? (
                 <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
                 {filteredItems.map(item => (

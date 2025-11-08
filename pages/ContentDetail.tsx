@@ -215,7 +215,7 @@ export default function ContentDetail({ id, user, onUserUpdate }: ContentDetailP
         <div className="container mx-auto p-4 sm:p-8 -mt-24 relative z-10">
             <div className="max-w-4xl mx-auto">
                 <span className="font-sans text-dourado-suave font-semibold tracking-wider">{item.type}</span>
-                <h1 className="font-serif text-4xl sm:text-5xl font-bold my-2 text-verde-mata dark:text-dourado-suave">
+                <h1 className="font-serif text-4xl sm:text-5xl font-bold my-2 text-gradient">
                     {item.title}
                 </h1>
                 <p className="font-sans text-lg text-marrom-seiva/80 dark:text-creme-velado/80">{item.subtitle}</p>
@@ -257,7 +257,7 @@ export default function ContentDetail({ id, user, onUserUpdate }: ContentDetailP
                         
                         {(item.type === 'Live' || item.type === 'Mentoria') && item.actionUrl && (
                             <div>
-                                <h2 className="font-serif text-3xl font-bold text-verde-mata dark:text-dourado-suave mb-4">
+                                <h2 className="font-serif text-3xl font-bold text-gradient mb-4">
                                     {item.type === 'Live' ? 'Assista a Gravação' : 'Assista à Aula'}
                                 </h2>
                                 <VideoPlayer youtubeId={extractYoutubeId(item.actionUrl)} />
@@ -286,7 +286,7 @@ export default function ContentDetail({ id, user, onUserUpdate }: ContentDetailP
                         </div>
 
                         <div className="mt-6">
-                            <h3 className="font-serif text-2xl font-bold text-verde-mata dark:text-dourado-suave mb-4">Discussão</h3>
+                            <h3 className="font-serif text-2xl font-bold text-gradient mb-4">Discussão</h3>
                             {user && (
                                 <form onSubmit={handleCommentSubmit} className="mb-6 flex items-start space-x-3">
                                     <img src={user.avatarUrl} alt={user.displayName} className="w-10 h-10 rounded-full object-cover"/>

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
-import { User as FirebaseUser } from 'firebase/auth';
 import { onAuthUserChanged } from './services/authService';
-import { getUserProfile, getLiveSessions, getAnnouncements, getAppearanceSettings, handleDailyLogin } from './services/api';
+import { getLiveSessions, getAnnouncements, getAppearanceSettings } from './services/api';
 import { Page, User, Announcement, AppearanceSettings } from './types';
 
 import Sidebar from './components/Sidebar';
@@ -57,25 +56,23 @@ export default function App() {
   const [pageKey, setPageKey] = useState(Date.now());
 
   useEffect(() => {
-    const unsubscribe = onAuthUserChanged(async (firebaseUser: FirebaseUser | null) => {
-      if (firebaseUser) {
-        let userProfile = await getUserProfile(firebaseUser.uid);
-        if (userProfile) {
-            userProfile = await handleDailyLogin(userProfile.id);
+    // onAuthUserChanged now returns our full User profile or null, and handles daily login
+    const { data: authListener } = onAuthUserChanged((sessionUser) => {
+        setUser(sessionUser);
+        if (sessionUser) {
+            if (['login', 'signup', 'landing'].includes(currentPage)) {
+                setCurrentPage('home');
+            }
+        } else {
+            setCurrentPage('login');
         }
-        setUser(userProfile);
-        if (['login', 'signup', 'landing'].includes(currentPage)) {
-            setCurrentPage('home');
-        }
-      } else {
-        setUser(null);
-        setCurrentPage('login');
-      }
-      setAuthChecked(true);
+        setAuthChecked(true);
     });
 
-    return () => unsubscribe();
-  }, []);
+    return () => {
+        authListener.subscription.unsubscribe();
+    };
+  }, [currentPage]);
   
   const fetchAnnouncements = useCallback(async () => {
     const activeAnnouncements = await getAnnouncements();

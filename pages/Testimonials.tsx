@@ -116,7 +116,7 @@ export default function Testimonials({ onViewTestimonial, onNavigate, user }: Te
         <header className="sticky top-0 z-10 flex items-center justify-between p-4 bg-creme-velado/80 dark:bg-verde-mata/80 backdrop-blur-md border-b border-marrom-seiva/10 dark:border-creme-velado/10">
             <div className="flex items-center space-x-2">
                 <BookOpenIcon className="w-7 h-7 text-verde-mata dark:text-dourado-suave" />
-                <h1 className="font-serif text-xl font-bold text-verde-mata dark:text-dourado-suave">Testemunhos de Fé</h1>
+                <h1 className="font-serif text-xl font-bold text-gradient">Testemunhos de Fé</h1>
             </div>
             <div className="flex items-center gap-4">
                 <Button onClick={() => onNavigate('publishTestimonial')} className="!py-2 !px-4">Adicionar Testemunho</Button>
@@ -124,7 +124,7 @@ export default function Testimonials({ onViewTestimonial, onNavigate, user }: Te
         </header>
 
         <main className="max-w-3xl mx-auto p-4 sm:p-8">
-            <h2 className="font-serif text-4xl font-bold text-verde-mata dark:text-dourado-suave">Feed de Testemunhos</h2>
+            <h2 className="font-serif text-4xl font-bold text-gradient">Feed de Testemunhos</h2>
             
             <div className="my-6">
                 <SearchAndFilter

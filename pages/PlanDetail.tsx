@@ -106,7 +106,7 @@ export default function PlanDetail({ id, user, onNavigate, onUserUpdate }: PlanD
       </button>
 
       <div className="bg-branco-nevoa dark:bg-verde-mata p-6 sm:p-8 rounded-2xl shadow-lg">
-        <h1 className="font-serif text-3xl sm:text-4xl font-bold text-verde-mata dark:text-dourado-suave">{plan.title}</h1>
+        <h1 className="font-serif text-3xl sm:text-4xl font-bold text-gradient">{plan.title}</h1>
         <p className="font-sans text-marrom-seiva/80 dark:text-creme-velado/80 mt-2">{plan.description}</p>
         
         <DayStepper

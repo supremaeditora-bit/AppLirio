@@ -83,7 +83,7 @@ export default function ReadingPlans({ user, onNavigate }: ReadingPlansProps) {
       <div className="container mx-auto p-4 sm:p-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
           <div className="text-center sm:text-left mb-4 sm:mb-0">
-            <h1 className="font-serif text-4xl sm:text-5xl font-bold text-verde-mata dark:text-dourado-suave">Planos de Leitura</h1>
+            <h1 className="font-serif text-4xl sm:text-5xl font-bold text-gradient">Planos de Leitura</h1>
             <p className="font-sans text-lg text-marrom-seiva/80 dark:text-creme-velado/80 mt-2 max-w-2xl mx-auto sm:mx-0">
               Escolha um plano de estudo para aprofundar seu conhecimento e fortalecer sua jornada de fé.
             </p>

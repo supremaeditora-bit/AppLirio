@@ -112,7 +112,7 @@ export default function Challenges({ user, onUserUpdate }: ChallengesProps) {
   return (
     <div className="container mx-auto p-4 sm:p-8">
       <div className="text-center mb-12">
-        <h1 className="font-serif text-4xl sm:text-5xl font-bold text-verde-mata dark:text-dourado-suave">Desafios de Fé</h1>
+        <h1 className="font-serif text-4xl sm:text-5xl font-bold text-gradient">Desafios de Fé</h1>
         <p className="font-sans text-lg text-marrom-seiva/80 dark:text-creme-velado/80 mt-2 max-w-2xl mx-auto">
             Participe dos desafios, cresça na sua jornada e ganhe pontos para avançar de nível!
         </p>
@@ -121,7 +121,7 @@ export default function Challenges({ user, onUserUpdate }: ChallengesProps) {
       <div className="space-y-12">
         {Object.entries(groupedChallenges).map(([theme, themeChallenges]) => (
             <section key={theme}>
-                <h2 className="font-serif text-3xl font-semibold mb-6 text-verde-mata dark:text-dourado-suave">{theme}</h2>
+                <h2 className="font-serif text-3xl font-semibold mb-6 text-gradient">{theme}</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {themeChallenges.map(challenge => (
                         <ChallengeCard

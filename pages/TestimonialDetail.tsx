@@ -139,7 +139,7 @@ export default function TestimonialDetail({ id, user, onNavigate }: TestimonialD
             <button onClick={() => onNavigate('testimonials')} className="p-2 rounded-full text-marrom-seiva dark:text-creme-velado hover:bg-marrom-seiva/10 dark:hover:bg-creme-velado/10">
                 <ChevronLeftIcon className="w-6 h-6" />
             </button>
-            <h1 className="font-serif text-lg font-bold text-verde-mata dark:text-dourado-suave truncate px-4">{post.title}</h1>
+            <h1 className="font-serif text-lg font-bold text-gradient truncate px-4">{post.title}</h1>
             <div className="w-10"></div>
         </header>
 
@@ -159,7 +159,7 @@ export default function TestimonialDetail({ id, user, onNavigate }: TestimonialD
                     </div>
                 )}
                 
-                <h2 className="font-serif text-3xl font-bold text-verde-mata dark:text-dourado-suave">{post.title}</h2>
+                <h2 className="font-serif text-3xl font-bold text-gradient">{post.title}</h2>
                 <p className="font-sans text-marrom-seiva dark:text-creme-velado/90 mt-4 whitespace-pre-wrap leading-relaxed">
                     {post.body}
                 </p>
@@ -184,7 +184,7 @@ export default function TestimonialDetail({ id, user, onNavigate }: TestimonialD
             </div>
 
             <div className="mt-8">
-                <h3 className="font-serif text-2xl font-bold text-verde-mata dark:text-dourado-suave mb-4">Comentários</h3>
+                <h3 className="font-serif text-2xl font-bold text-gradient mb-4">Comentários</h3>
                 
                 {user && (
                     <form onSubmit={handleComment} className="mb-6 flex items-start space-x-3">

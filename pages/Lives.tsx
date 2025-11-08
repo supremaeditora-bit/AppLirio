@@ -206,7 +206,7 @@ export default function Lives({ user, onUserUpdate }: LivesProps) {
     <>
       <div className="container mx-auto p-4 sm:p-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
-            <h1 className="font-serif text-4xl font-bold text-verde-mata dark:text-dourado-suave">Lives</h1>
+            <h1 className="font-serif text-4xl font-bold text-gradient">Lives</h1>
             {canManage && (
                 <Button onClick={() => handleOpenForm(null)} className="mt-4 sm:mt-0">
                     <PlusIcon className="w-5 h-5 mr-2" />
@@ -234,14 +234,14 @@ export default function Lives({ user, onUserUpdate }: LivesProps) {
                   <VideoPlayer youtubeId={selectedSession.youtubeId} />
                   <div className="p-6">
                     {selectedSession.status === 'live' && <p className="font-sans font-bold text-red-500 uppercase text-sm mb-2">● AO VIVO</p>}
-                    <h2 className="font-serif text-3xl font-bold text-verde-mata dark:text-dourado-suave">{selectedSession.title}</h2>
+                    <h2 className="font-serif text-3xl font-bold text-gradient">{selectedSession.title}</h2>
                     <p className="font-sans text-marrom-seiva/80 dark:text-creme-velado/80 mt-2">{selectedSession.description}</p>
                   </div>
                 </div>
 
                 {/* Chat Section */}
                 <div>
-                  <h3 className="font-serif text-2xl font-bold text-verde-mata dark:text-dourado-suave mb-4">Chat</h3>
+                  <h3 className="font-serif text-2xl font-bold text-gradient mb-4">Chat</h3>
                   {user && (
                       <form onSubmit={handleCommentSubmit} className="mb-6 flex items-start space-x-3">
                           <img src={user.avatarUrl} alt={user.displayName} className="w-10 h-10 rounded-full object-cover"/>
