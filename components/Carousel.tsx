@@ -1,3 +1,4 @@
+
 import React, { useRef } from 'react';
 import { ContentItem, User } from '../types';
 import ContentCard from './ContentCard';
@@ -6,7 +7,7 @@ import { ChevronLeftIcon, ChevronRightIcon } from './Icons';
 interface CarouselProps {
   title: string;
   items: ContentItem[];
-  onCardClick: (id: string) => void; // UPDATED: from number to string
+  onCardClick: (id: string) => void; 
   user: User | null;
 }
 

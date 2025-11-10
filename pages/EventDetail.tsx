@@ -10,10 +10,9 @@ interface EventDetailProps {
   id: string;
   user: User | null;
   onNavigate: (page: Page) => void;
-  onUserUpdate: (updatedData: Partial<User>) => Promise<void>;
 }
 
-export default function EventDetail({ id, user, onNavigate, onUserUpdate }: EventDetailProps) {
+export default function EventDetail({ id, user, onNavigate }: EventDetailProps) {
   const [event, setEvent] = useState<Event | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRegistered, setIsRegistered] = useState(false);
@@ -36,8 +35,7 @@ export default function EventDetail({ id, user, onNavigate, onUserUpdate }: Even
   const handleRegister = async () => {
     if (!user || !event) return;
     setIsRegistering(true);
-    const updatedUser = await registerForEvent(event.id, user.id);
-    if(updatedUser) onUserUpdate(updatedUser);
+    await registerForEvent(event.id, user.id);
     setIsRegistered(true);
     setIsRegistering(false);
   };
@@ -67,7 +65,7 @@ export default function EventDetail({ id, user, onNavigate, onUserUpdate }: Even
         </div>
         <div className="container mx-auto p-4 sm:p-8 -mt-24 relative z-10">
           <div className="max-w-4xl mx-auto">
-            <h1 className="font-serif text-4xl sm:text-5xl font-bold my-2 text-gradient">{event.title}</h1>
+            <h1 className="font-serif text-4xl sm:text-5xl font-bold my-2 text-verde-mata dark:text-dourado-suave">{event.title}</h1>
             
             <div className="my-6 p-4 bg-branco-nevoa/80 dark:bg-verde-mata/80 backdrop-blur-sm rounded-xl flex flex-col sm:flex-row items-start sm:items-center gap-4">
               <CalendarDaysIcon className="w-10 h-10 text-dourado-suave flex-shrink-0" />

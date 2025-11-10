@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-// FIX: Added 'prayForPost' to imports to resolve missing member error.
-import { getCommunityPosts, createCommunityPost, addReactionToPost, addCommentToPost, updateCommunityPost, deleteCommunityPost, deleteCommentFromPost, addReactionToComment, prayForPost } from '../services/api';
+import { getCommunityPosts, createCommunityPost, addReactionToPost, addCommentToPost, updateCommunityPost, deleteCommunityPost, deleteCommentFromPost, addReactionToComment } from '../services/api';
 import { CommunityPost, User, Comment } from '../types';
 import Spinner from '../components/Spinner';
 import Button from '../components/Button';
@@ -20,7 +19,7 @@ const filterOptions = [
     { value: 'populares', label: 'Mais Populares' },
 ];
 
-export default function Prayers({ user, onUserUpdate }: PrayersProps) {
+export default function Prayers({ user }: PrayersProps) {
     const [posts, setPosts] = useState<CommunityPost[]>([]);
     const [filteredPosts, setFilteredPosts] = useState<CommunityPost[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -83,7 +82,7 @@ export default function Prayers({ user, onUserUpdate }: PrayersProps) {
         if (activeFilter === 'recentes') {
             results.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         } else if (activeFilter === 'populares') {
-            results.sort((a, b) => ((b.prayedBy?.length || 0) + b.comments.length) - ((a.prayedBy?.length || 0) + a.comments.length));
+            results.sort((a, b) => (b.reactions.length + b.comments.length) - (a.reactions.length + a.comments.length));
         }
         
         setFilteredPosts(results);
@@ -123,14 +122,13 @@ export default function Prayers({ user, onUserUpdate }: PrayersProps) {
                     isAnonymous: isAnonymous
                 });
             } else {
-                const updatedUser = await createCommunityPost({
+                await createCommunityPost({
                     room: 'oracao',
                     title: newPostTitle,
                     body: newPostBody,
                     authorId: user.id,
                     isAnonymous: isAnonymous
                 });
-                if(updatedUser) onUserUpdate(updatedUser);
             }
             handleCloseForm();
             fetchPosts();
@@ -168,28 +166,27 @@ export default function Prayers({ user, onUserUpdate }: PrayersProps) {
     };
 
 
-    const handlePray = async (postId: string) => {
+    const handleReaction = async (postId: string) => {
         if (!user) return;
-
-        const updatedUser = await prayForPost(postId, user.id);
-        if(updatedUser) onUserUpdate(updatedUser);
         
         setPosts(posts.map(p => {
             if (p.id === postId) {
-                const alreadyPrayed = p.prayedBy?.includes(user.id);
-                if (alreadyPrayed) return p; // Can only pray once
-                return { ...p, prayedBy: [...(p.prayedBy || []), user.id] };
+                const hasReacted = p.reactions.some(r => r.userId === user.id);
+                const newReactions = hasReacted 
+                    ? p.reactions.filter(r => r.userId !== user.id)
+                    : [...p.reactions, { userId: user.id }];
+                return { ...p, reactions: newReactions };
             }
             return p;
         }));
+        await addReactionToPost(postId, user.id);
     };
 
     const handleComment = async (postId: string) => {
         if (!commentText.trim() || !user) return;
         const currentComment = commentText;
         setCommentText('');
-        const updatedUser = await addCommentToPost(postId, currentComment, user);
-        if(updatedUser) onUserUpdate(updatedUser);
+        await addCommentToPost(postId, currentComment, user);
         fetchPosts();
     };
 
@@ -223,7 +220,7 @@ export default function Prayers({ user, onUserUpdate }: PrayersProps) {
         <>
             <div className="container mx-auto p-4 sm:p-8">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
-                    <h1 className="font-serif text-4xl font-bold text-gradient">Pedidos de Oração</h1>
+                    <h1 className="font-serif text-4xl font-bold text-verde-mata dark:text-dourado-suave">Pedidos de Oração</h1>
                     <Button onClick={() => handleOpenForm(null)} variant="primary" className="mt-4 sm:mt-0">Fazer um Pedido</Button>
                 </div>
 
@@ -241,7 +238,7 @@ export default function Prayers({ user, onUserUpdate }: PrayersProps) {
                 ) : (
                     <div className="space-y-6">
                         {filteredPosts.length > 0 ? filteredPosts.map(post => {
-                            const hasPrayed = user ? post.prayedBy?.includes(user.id) : false;
+                            const hasReacted = user ? post.reactions.some(r => r.userId === user.id) : false;
                             const canManage = user && (user.id === post.author.id || user.role === 'admin' || user.role === 'mentora');
                             const postAuthor = post.isAnonymous ? { name: 'Usuária Anônima', avatarUrl: ANONYMOUS_AVATAR } : post.author;
 
@@ -271,16 +268,15 @@ export default function Prayers({ user, onUserUpdate }: PrayersProps) {
                                     <p className="mt-4 font-sans text-marrom-seiva dark:text-creme-velado/90 leading-relaxed">{post.body}</p>
                                     <div className="mt-4 pt-4 border-t border-marrom-seiva/10 dark:border-creme-velado/10 flex items-center space-x-4">
                                         <button 
-                                            onClick={() => handlePray(post.id)}
-                                            disabled={hasPrayed}
+                                            onClick={() => handleReaction(post.id)}
                                             className={`flex items-center space-x-2 font-sans text-sm font-semibold transition-colors duration-200 ${
-                                                hasPrayed 
+                                                hasReacted 
                                                 ? 'text-dourado-suave' 
                                                 : 'text-marrom-seiva/60 dark:text-creme-velado/60 hover:text-dourado-suave'
-                                            } disabled:opacity-50 disabled:cursor-not-allowed`}
+                                            }`}
                                         >
                                             <PrayingHandsIcon className="w-5 h-5" />
-                                            <span>{post.prayedBy?.length || 0} Orações</span>
+                                            <span>{post.reactions.length} Orações</span>
                                         </button>
                                         <div className="flex items-center space-x-2 font-sans text-sm font-semibold text-marrom-seiva/60 dark:text-creme-velado/60">
                                             <ChatBubbleIcon className="w-5 h-5" />
@@ -320,7 +316,7 @@ export default function Prayers({ user, onUserUpdate }: PrayersProps) {
                                     </div>
                                     {user && (
                                         <form onSubmit={(e) => { e.preventDefault(); handleComment(post.id); }} className="mt-4 flex items-center space-x-3">
-                                            <img src={user.avatarUrl} alt={user.displayName} className="w-9 h-9 rounded-full object-cover"/>
+                                            <img src={user.avatarUrl} alt={user.fullName} className="w-9 h-9 rounded-full object-cover"/>
                                             <div className="flex-1 relative">
                                                 <input 
                                                     type="text" 

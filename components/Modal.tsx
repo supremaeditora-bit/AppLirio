@@ -46,7 +46,7 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-6">
-          <h2 className="font-serif text-2xl font-bold text-gradient">{title}</h2>
+          <h2 className="font-serif text-2xl font-bold text-verde-mata dark:text-dourado-suave">{title}</h2>
           <button onClick={onClose} className="p-1 rounded-full text-marrom-seiva dark:text-creme-velado hover:bg-marrom-seiva/10 dark:hover:bg-creme-velado/10">
             <CloseIcon className="w-6 h-6" />
           </button>

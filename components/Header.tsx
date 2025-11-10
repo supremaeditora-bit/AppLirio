@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { User, Page, Notification } from '../types';
-import { SearchIcon, BellIcon, MenuIcon, SunIcon, MoonIcon, UserCircleIcon, LogoutIcon, ShieldCheckIcon } from './Icons';
+import { SearchIcon, BellIcon, MenuIcon, SunIcon, MoonIcon, UserCircleIcon, LogoutIcon } from './Icons';
 import { useTheme } from '../hooks/useTheme';
 import { getNotifications, markNotificationAsRead } from '../services/api';
 import { logout } from '../services/authService';
@@ -147,38 +148,25 @@ export default function Header({ onToggleMobileSidebar, user, onNavigate, onTogg
                 {/* Profile Dropdown */}
                 <div className="relative" ref={profileMenuRef}>
                     <button onClick={() => {setProfileMenuOpen(!isProfileMenuOpen); setNotifOpen(false);}} className="flex items-center space-x-2 rounded-full p-1 hover:bg-marrom-seiva/10 dark:hover:bg-creme-velado/10">
-                        <img src={user?.avatarUrl} alt={user?.displayName} className="w-9 h-9 rounded-full object-cover" />
-                        <span className="hidden lg:inline font-sans font-semibold text-marrom-seiva dark:text-creme-velado">{user?.displayName}</span>
+                        <img src={user?.avatarUrl} alt={user?.fullName} className="w-9 h-9 rounded-full object-cover" />
+                        <span className="hidden lg:inline font-sans font-semibold text-marrom-seiva dark:text-creme-velado">{user?.fullName}</span>
                     </button>
                     {isProfileMenuOpen && (
                         <div className="absolute right-0 mt-2 w-48 bg-branco-nevoa dark:bg-verde-mata rounded-lg shadow-2xl z-50 overflow-hidden border border-marrom-seiva/10 dark:border-creme-velado/10">
-                            <div>
-                                <button 
-                                    onClick={() => { onNavigate('profile'); setProfileMenuOpen(false); }} 
-                                    className="w-full text-left flex items-center px-4 py-3 text-sm font-sans text-marrom-seiva dark:text-creme-velado hover:bg-marrom-seiva/5 dark:hover:bg-creme-velado/5"
-                                >
-                                    <UserCircleIcon className="w-5 h-5 mr-3" />
-                                    Meu Perfil
-                                </button>
-                                {user?.role === 'admin' && (
-                                    <button 
-                                        onClick={() => { onNavigate('admin'); setProfileMenuOpen(false); }} 
-                                        className="w-full text-left flex items-center px-4 py-3 text-sm font-sans text-marrom-seiva dark:text-creme-velado hover:bg-marrom-seiva/5 dark:hover:bg-creme-velado/5"
-                                    >
-                                        <ShieldCheckIcon className="w-5 h-5 mr-3" />
-                                        Administração
-                                    </button>
-                                )}
-                            </div>
-                            <div className="border-t border-marrom-seiva/10 dark:border-creme-velado/10">
-                                <button 
-                                    onClick={handleLogout} 
-                                    className="w-full text-left flex items-center px-4 py-3 text-sm font-sans text-marrom-seiva dark:text-creme-velado hover:bg-marrom-seiva/5 dark:hover:bg-creme-velado/5"
-                                >
-                                    <LogoutIcon className="w-5 h-5 mr-3" />
-                                    Sair
-                                </button>
-                            </div>
+                            <button 
+                                onClick={() => { onNavigate('profile'); setProfileMenuOpen(false); }} 
+                                className="w-full text-left flex items-center px-4 py-3 text-sm font-sans text-marrom-seiva dark:text-creme-velado hover:bg-marrom-seiva/5 dark:hover:bg-creme-velado/5"
+                            >
+                                <UserCircleIcon className="w-5 h-5 mr-3" />
+                                Meu Perfil
+                            </button>
+                            <button 
+                                onClick={handleLogout} 
+                                className="w-full text-left flex items-center px-4 py-3 text-sm font-sans text-marrom-seiva dark:text-creme-velado hover:bg-marrom-seiva/5 dark:hover:bg-creme-velado/5 border-t border-marrom-seiva/10 dark:border-creme-velado/10"
+                            >
+                                <LogoutIcon className="w-5 h-5 mr-3" />
+                                Sair
+                            </button>
                         </div>
                     )}
                 </div>

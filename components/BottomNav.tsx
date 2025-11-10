@@ -8,8 +8,6 @@ interface BottomNavProps {
     currentPage: Page;
 }
 
-// FIX: Changed icon type from JSX.Element to React.ReactElement to fix namespace error.
-// FIX: Specified the props type for the `icon` React.ReactElement to allow passing `className`.
 const NavItem: React.FC<{ icon: React.ReactElement<{ className?: string }>, label: string, page: Page, currentPage: Page, onNavigate: (page: Page) => void }> = ({ icon, label, page, currentPage, onNavigate }) => {
     const isActive = currentPage === page;
     return (

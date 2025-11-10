@@ -85,24 +85,18 @@ export default function Challenges({ user, onUserUpdate }: ChallengesProps) {
     }
   };
 
-  // FIX: The original `reduce` was incorrectly typed, leading to `groupedChallenges`
-  // having a type that caused a downstream error on `.map()`. This is fixed by
-  // correctly typing the initial value of the accumulator. The sorting logic was also
-  // moved outside the reduce loop for better performance.
-  // FIX: Correctly typed the `reduce` operation for `groupedChallenges` by explicitly typing the variable. This ensures that the accumulator and the final result have the correct type, resolving downstream errors where `.sort()` and `.map()` were called on values inferred as `unknown`.
-  const groupedChallenges: Record<string, Challenge[]> = challenges.reduce((acc, challenge) => {
+  // Fix: Explicitly type the accumulator and initial value of the reduce function
+  // to ensure TypeScript correctly infers the type of `groupedChallenges`.
+  const groupedChallenges = challenges.reduce((acc: Record<string, Challenge[]>, challenge) => {
     const theme = challenge.theme || 'Desafios Gerais';
     if (!acc[theme]) {
       acc[theme] = [];
     }
     acc[theme].push(challenge);
+    // Sort by sequenceOrder within each theme
+    acc[theme].sort((a, b) => (a.sequenceOrder || 0) - (b.sequenceOrder || 0));
     return acc;
-  }, {});
-
-  // Sort challenges within each theme after grouping.
-  Object.values(groupedChallenges).forEach(group => {
-    group.sort((a, b) => (a.sequenceOrder || 0) - (b.sequenceOrder || 0));
-  });
+  }, {} as Record<string, Challenge[]>);
 
 
   if (isLoading) {
@@ -112,7 +106,7 @@ export default function Challenges({ user, onUserUpdate }: ChallengesProps) {
   return (
     <div className="container mx-auto p-4 sm:p-8">
       <div className="text-center mb-12">
-        <h1 className="font-serif text-4xl sm:text-5xl font-bold text-gradient">Desafios de Fé</h1>
+        <h1 className="font-serif text-4xl sm:text-5xl font-bold text-verde-mata dark:text-dourado-suave">Desafios de Fé</h1>
         <p className="font-sans text-lg text-marrom-seiva/80 dark:text-creme-velado/80 mt-2 max-w-2xl mx-auto">
             Participe dos desafios, cresça na sua jornada e ganhe pontos para avançar de nível!
         </p>
@@ -121,7 +115,7 @@ export default function Challenges({ user, onUserUpdate }: ChallengesProps) {
       <div className="space-y-12">
         {Object.entries(groupedChallenges).map(([theme, themeChallenges]) => (
             <section key={theme}>
-                <h2 className="font-serif text-3xl font-semibold mb-6 text-gradient">{theme}</h2>
+                <h2 className="font-serif text-3xl font-semibold mb-6 text-verde-mata dark:text-dourado-suave">{theme}</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {themeChallenges.map(challenge => (
                         <ChallengeCard

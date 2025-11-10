@@ -4,11 +4,7 @@ import Button from '../Button';
 import Spinner from '../Spinner';
 import { getAppearanceSettings, updateAppearanceSettings } from '../../services/api';
 import { uploadImage } from '../../services/storageService';
-import { AppearanceSettings, ThemeColors, LogoSettings, User, FontSettings } from '../../types';
-
-interface AppearanceManagerProps {
-  user: User;
-}
+import { AppearanceSettings, ThemeColors } from '../../types';
 
 const defaultSettings: AppearanceSettings = {
     heroData: {
@@ -19,16 +15,8 @@ const defaultSettings: AppearanceSettings = {
     },
     isAiDevotionalEnabled: false,
     aiDevotionalScheduleTime: '06:00',
-    logoSettings: {
-        displayMode: 'image-with-text',
-        lightThemeUrl: '',
-        darkThemeUrl: '',
-        siteTitle: 'ELV | Assistente Espiritual',
-    },
-    fontSettings: {
-        headingFont: 'Playfair Display',
-        bodyFont: 'Inter',
-    },
+    siteTitle: 'ELV | Assistente Espiritual',
+    logoUrl: '',
     faviconUrl: '/favicon.ico',
     themeColors: {
       lightBg: '#FBF8F1',
@@ -44,15 +32,6 @@ const defaultSettings: AppearanceSettings = {
 
 type ImageSource = 'url' | 'upload';
 
-const fontOptions = [
-    { name: 'Inter', family: 'Inter, sans-serif' },
-    { name: 'Lato', family: 'Lato, sans-serif' },
-    { name: 'Roboto', family: 'Roboto, sans-serif' },
-    { name: 'Playfair Display', family: 'Playfair Display, serif' },
-    { name: 'Lora', family: 'Lora, serif' },
-    { name: 'Merriweather', family: 'Merriweather, serif' },
-];
-
 const ColorInput: React.FC<{ label: string; value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void }> = ({ label, value, onChange }) => (
     <div>
         <label className="block font-sans font-semibold text-sm mb-1 text-marrom-seiva dark:text-creme-velado/80">{label}</label>
@@ -63,7 +42,19 @@ const ColorInput: React.FC<{ label: string; value: string; onChange: (e: React.C
     </div>
 );
 
-export default function AppearanceManager({ user }: AppearanceManagerProps) {
+const FileUpload: React.FC<{ label: string; file: File | null; preview: string | null; onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void; currentUrl: string | undefined, accept: string }> = ({ label, file, preview, onFileChange, currentUrl, accept }) => (
+    <div>
+        <label className="block font-sans font-semibold text-sm mb-2 text-marrom-seiva dark:text-creme-velado/80">{label}</label>
+        <div className="flex items-center gap-4">
+            <div className="w-16 h-16 flex-shrink-0 bg-creme-velado dark:bg-verde-escuro-profundo rounded-lg flex items-center justify-center overflow-hidden">
+                <img src={preview || currentUrl} alt="Preview" className="w-full h-full object-contain" />
+            </div>
+            <input type="file" accept={accept} onChange={onFileChange} className="w-full text-sm font-sans file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-dourado-suave/20 file:text-dourado-suave hover:file:bg-dourado-suave/30"/>
+        </div>
+    </div>
+);
+
+export default function AppearanceManager() {
   const [settings, setSettings] = useState<Partial<AppearanceSettings>>(defaultSettings);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -72,18 +63,10 @@ export default function AppearanceManager({ user }: AppearanceManagerProps) {
   const [heroImageSource, setHeroImageSource] = useState<ImageSource>('url');
   const [selectedHeroImage, setSelectedHeroImage] = useState<File | null>(null);
   
-  const [logoLightSource, setLogoLightSource] = useState<ImageSource>('url');
-  const [selectedLogoLight, setSelectedLogoLight] = useState<File | null>(null);
-  const [logoLightPreview, setLogoLightPreview] = useState<string | null>(null);
-  
-  const [logoDarkSource, setLogoDarkSource] = useState<ImageSource>('url');
-  const [selectedLogoDark, setSelectedLogoDark] = useState<File | null>(null);
-  const [logoDarkPreview, setLogoDarkPreview] = useState<string | null>(null);
-  
-  const [faviconSource, setFaviconSource] = useState<ImageSource>('url');
+  const [selectedLogo, setSelectedLogo] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [selectedFavicon, setSelectedFavicon] = useState<File | null>(null);
   const [faviconPreview, setFaviconPreview] = useState<string | null>(null);
-  
   const [selectedBgImage, setSelectedBgImage] = useState<File | null>(null);
   const [bgImagePreview, setBgImagePreview] = useState<string | null>(null);
 
@@ -113,39 +96,6 @@ export default function AppearanceManager({ user }: AppearanceManagerProps) {
         setSettings(prev => ({ ...prev, [id]: value }));
     }
   };
-
-  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { id, value } = e.target;
-    setSettings(prev => ({
-        ...prev,
-        logoSettings: {
-            ...(prev.logoSettings || defaultSettings.logoSettings!),
-            [id]: value
-        }
-    }));
-  };
-
-  const handleDisplayModeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { value } = e.target;
-    setSettings(prev => ({
-        ...prev,
-        logoSettings: {
-            ...(prev.logoSettings || defaultSettings.logoSettings!),
-            displayMode: value as LogoSettings['displayMode']
-        }
-    }));
-  };
-
-  const handleFontChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const { id, value } = e.target;
-    setSettings(prev => ({
-        ...prev,
-        fontSettings: {
-            ...(prev.fontSettings || defaultSettings.fontSettings!),
-            [id]: value
-        }
-    }));
-  };
   
   const handleColorChange = (colorName: keyof ThemeColors, value: string) => {
       setSettings(prev => ({ ...prev, themeColors: { ...(prev.themeColors!), [colorName]: value } }))
@@ -161,50 +111,39 @@ export default function AppearanceManager({ user }: AppearanceManagerProps) {
     setSaveSuccess(false);
     
     try {
-        const newSettings = JSON.parse(JSON.stringify(settings)) as AppearanceSettings;
+        let finalSettings = { ...settings };
         
-        if (logoLightSource === 'upload' && selectedLogoLight) {
-            const url = await uploadImage(selectedLogoLight, user.id, () => {});
-            if(newSettings.logoSettings) newSettings.logoSettings.lightThemeUrl = url;
-        }
-        if (logoDarkSource === 'upload' && selectedLogoDark) {
-            const url = await uploadImage(selectedLogoDark, user.id, () => {});
-            if(newSettings.logoSettings) newSettings.logoSettings.darkThemeUrl = url;
-        }
-        if (faviconSource === 'upload' && selectedFavicon) {
-            const url = await uploadImage(selectedFavicon, user.id, () => {});
-            newSettings.faviconUrl = url;
-        }
+        const uploads: Promise<void>[] = [];
+        
         if (heroImageSource === 'upload' && selectedHeroImage) {
-            const url = await uploadImage(selectedHeroImage, user.id, () => {});
-            if(newSettings.heroData) newSettings.heroData.imageUrl = url;
+            uploads.push(uploadImage(selectedHeroImage, 'appearance', () => {}).then(url => {
+                finalSettings.heroData!.imageUrl = url;
+            }));
         }
-        if (settings.useBackgroundImage && selectedBgImage) {
-            const url = await uploadImage(selectedBgImage, user.id, () => {});
-            newSettings.backgroundImageUrl = url;
+        if (selectedLogo) {
+            uploads.push(uploadImage(selectedLogo, 'appearance', () => {}).then(url => {
+                finalSettings.logoUrl = url;
+            }));
+        }
+        if (selectedFavicon) {
+            uploads.push(uploadImage(selectedFavicon, 'appearance', () => {}).then(url => {
+                finalSettings.faviconUrl = url;
+            }));
+        }
+        if (selectedBgImage) {
+            uploads.push(uploadImage(selectedBgImage, 'appearance', () => {}).then(url => {
+                finalSettings.backgroundImageUrl = url;
+            }));
         }
 
-        await updateAppearanceSettings(newSettings);
-        setSettings(newSettings);
-        
-        document.dispatchEvent(new CustomEvent('settingsUpdated'));
-
-        // Reset file input and preview states
-        setSelectedHeroImage(null);
-        setSelectedLogoLight(null);
-        setLogoLightPreview(null);
-        setSelectedLogoDark(null);
-        setLogoDarkPreview(null);
-        setSelectedFavicon(null);
-        setFaviconPreview(null);
-        setSelectedBgImage(null);
-        setBgImagePreview(null);
-
+        await Promise.all(uploads);
+        await updateAppearanceSettings(finalSettings);
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 3000);
+        // Optionally refresh page to see all changes applied
+        // window.location.reload();
     } catch (error) {
         console.error("Failed to save settings", error);
-        alert("Falha ao salvar as configurações. Verifique o console para mais detalhes.")
     } finally {
         setIsSaving(false);
     }
@@ -219,89 +158,10 @@ export default function AppearanceManager({ user }: AppearanceManagerProps) {
       
       <div className="bg-branco-nevoa dark:bg-verde-mata p-6 rounded-xl shadow-lg">
         <h2 className="font-serif text-2xl font-semibold text-verde-mata dark:text-dourado-suave mb-4">Identidade Visual</h2>
-        <div className="space-y-6">
-           <div>
-                <label className="block font-sans font-semibold text-sm mb-2 text-marrom-seiva dark:text-creme-velado/80">Exibição do Logo</label>
-                <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-                    <label className="flex items-center space-x-2 cursor-pointer">
-                        <input type="radio" name="displayMode" value="image-with-text" checked={settings.logoSettings?.displayMode === 'image-with-text'} onChange={handleDisplayModeChange} className="accent-dourado-suave"/>
-                        <span className="font-sans text-sm">Imagem e Texto</span>
-                    </label>
-                    <label className="flex items-center space-x-2 cursor-pointer">
-                        <input type="radio" name="displayMode" value="image-only" checked={settings.logoSettings?.displayMode === 'image-only'} onChange={handleDisplayModeChange} className="accent-dourado-suave"/>
-                        <span className="font-sans text-sm">Somente Imagem</span>
-                    </label>
-                    <label className="flex items-center space-x-2 cursor-pointer">
-                        <input type="radio" name="displayMode" value="text-only" checked={settings.logoSettings?.displayMode === 'text-only'} onChange={handleDisplayModeChange} className="accent-dourado-suave"/>
-                        <span className="font-sans text-sm">Somente Texto</span>
-                    </label>
-                </div>
-            </div>
-
-            {(settings.logoSettings?.displayMode === 'image-with-text' || settings.logoSettings?.displayMode === 'text-only') && (
-                <InputField id="siteTitle" label="Texto do Logo / Título do Site" value={settings.logoSettings?.siteTitle || ''} onChange={handleLogoChange} />
-            )}
-
-            {(settings.logoSettings?.displayMode === 'image-with-text' || settings.logoSettings?.displayMode === 'image-only') && (
-                <>
-                    <div>
-                        <label className="block font-sans font-semibold text-sm mb-2 text-marrom-seiva dark:text-creme-velado/80">Logo (Modo Claro)</label>
-                        <div className="flex items-center gap-x-6 mb-2"><label className="flex items-center space-x-2 cursor-pointer"><input type="radio" name="logoLightSource" value="url" checked={logoLightSource === 'url'} onChange={() => setLogoLightSource('url')} className="accent-dourado-suave"/> <span className="font-sans text-sm">URL</span></label><label className="flex items-center space-x-2 cursor-pointer"><input type="radio" name="logoLightSource" value="upload" checked={logoLightSource === 'upload'} onChange={() => setLogoLightSource('upload')} className="accent-dourado-suave"/> <span className="font-sans text-sm">Upload</span></label></div>
-                        {logoLightSource === 'url' ? <InputField id="lightThemeUrl" label="" value={settings.logoSettings?.lightThemeUrl || ''} onChange={handleLogoChange} /> : <div><div className="flex items-center gap-4"><div className="w-16 h-16 flex-shrink-0 bg-creme-velado dark:bg-verde-escuro-profundo rounded-lg flex items-center justify-center overflow-hidden"><img src={logoLightPreview || settings.logoSettings?.lightThemeUrl} alt="Preview" className="w-full h-full object-contain" /></div><input type="file" accept="image/png, image/svg+xml, image/jpeg, image/webp" onChange={handleFileChange(setSelectedLogoLight, setLogoLightPreview)} className="w-full text-sm font-sans file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-dourado-suave/20 file:text-dourado-suave hover:file:bg-dourado-suave/30"/></div></div>}
-                    </div>
-                    <div>
-                        <label className="block font-sans font-semibold text-sm mb-2 text-marrom-seiva dark:text-creme-velado/80">Logo (Modo Escuro)</label>
-                        <div className="flex items-center gap-x-6 mb-2"><label className="flex items-center space-x-2 cursor-pointer"><input type="radio" name="logoDarkSource" value="url" checked={logoDarkSource === 'url'} onChange={() => setLogoDarkSource('url')} className="accent-dourado-suave"/> <span className="font-sans text-sm">URL</span></label><label className="flex items-center space-x-2 cursor-pointer"><input type="radio" name="logoDarkSource" value="upload" checked={logoDarkSource === 'upload'} onChange={() => setLogoDarkSource('upload')} className="accent-dourado-suave"/> <span className="font-sans text-sm">Upload</span></label></div>
-                        {logoDarkSource === 'url' ? <InputField id="darkThemeUrl" label="" value={settings.logoSettings?.darkThemeUrl || ''} onChange={handleLogoChange} /> : <div><div className="flex items-center gap-4"><div className="w-16 h-16 flex-shrink-0 bg-creme-velado dark:bg-verde-escuro-profundo rounded-lg flex items-center justify-center overflow-hidden"><img src={logoDarkPreview || settings.logoSettings?.darkThemeUrl} alt="Preview" className="w-full h-full object-contain" /></div><input type="file" accept="image/png, image/svg+xml, image/jpeg, image/webp" onChange={handleFileChange(setSelectedLogoDark, setLogoDarkPreview)} className="w-full text-sm font-sans file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-dourado-suave/20 file:text-dourado-suave hover:file:bg-dourado-suave/30"/></div></div>}
-                    </div>
-                </>
-            )}
-            
-            <div>
-                <label className="block font-sans font-semibold text-sm mb-2 text-marrom-seiva dark:text-creme-velado/80">Favicon do Site</label>
-                <div className="flex items-center gap-x-6 mb-2">
-                    <label className="flex items-center space-x-2 cursor-pointer">
-                        <input type="radio" name="faviconSource" value="url" checked={faviconSource === 'url'} onChange={() => setFaviconSource('url')} className="accent-dourado-suave"/>
-                        <span className="font-sans text-sm">URL</span>
-                    </label>
-                    <label className="flex items-center space-x-2 cursor-pointer">
-                        <input type="radio" name="faviconSource" value="upload" checked={faviconSource === 'upload'} onChange={() => setFaviconSource('upload')} className="accent-dourado-suave"/>
-                        <span className="font-sans text-sm">Upload</span>
-                    </label>
-                </div>
-                {faviconSource === 'url' ? (
-                    <InputField id="faviconUrl" label="" value={settings.faviconUrl || ''} onChange={handleChange} />
-                ) : (
-                    <div className="flex items-center gap-4">
-                        <div className="w-16 h-16 flex-shrink-0 bg-creme-velado dark:bg-verde-escuro-profundo rounded-lg flex items-center justify-center overflow-hidden">
-                            <img src={faviconPreview || settings.faviconUrl} alt="Preview" className="w-full h-full object-contain" />
-                        </div>
-                        <input type="file" accept="image/x-icon, image/png, image/svg+xml" onChange={handleFileChange(setSelectedFavicon, setFaviconPreview)} className="w-full text-sm font-sans file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-dourado-suave/20 file:text-dourado-suave hover:file:bg-dourado-suave/30"/>
-                    </div>
-                )}
-            </div>
-        </div>
-      </div>
-
-       <div className="bg-branco-nevoa dark:bg-verde-mata p-6 rounded-xl shadow-lg">
-        <h2 className="font-serif text-2xl font-semibold text-verde-mata dark:text-dourado-suave mb-4">Tipografia</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-                <label htmlFor="headingFont" className="block font-sans font-semibold text-sm mb-2 text-marrom-seiva dark:text-creme-velado/80">Fonte dos Títulos</label>
-                <select id="headingFont" value={settings.fontSettings?.headingFont || ''} onChange={handleFontChange} className="w-full font-sans bg-creme-velado dark:bg-verde-escuro-profundo border-2 border-marrom-seiva/20 dark:border-creme-velado/20 rounded-lg p-3 text-marrom-seiva dark:text-creme-velado focus:outline-none focus:ring-2 focus:ring-dourado-suave">
-                    {fontOptions.map(font => (
-                        <option key={font.name} value={font.name} style={{ fontFamily: font.family }}>{font.name}</option>
-                    ))}
-                </select>
-            </div>
-            <div>
-                <label htmlFor="bodyFont" className="block font-sans font-semibold text-sm mb-2 text-marrom-seiva dark:text-creme-velado/80">Fonte do Corpo do Texto</label>
-                <select id="bodyFont" value={settings.fontSettings?.bodyFont || ''} onChange={handleFontChange} className="w-full font-sans bg-creme-velado dark:bg-verde-escuro-profundo border-2 border-marrom-seiva/20 dark:border-creme-velado/20 rounded-lg p-3 text-marrom-seiva dark:text-creme-velado focus:outline-none focus:ring-2 focus:ring-dourado-suave">
-                    {fontOptions.map(font => (
-                        <option key={font.name} value={font.name} style={{ fontFamily: font.family }}>{font.name}</option>
-                    ))}
-                </select>
-            </div>
+        <div className="space-y-4">
+          <InputField id="siteTitle" label="Título do Site" value={settings.siteTitle || ''} onChange={handleChange} />
+          <FileUpload label="Logo do Site (para o menu)" file={selectedLogo} preview={logoPreview} onFileChange={handleFileChange(setSelectedLogo, setLogoPreview)} currentUrl={settings.logoUrl} accept="image/png, image/svg+xml, image/jpeg, image/webp" />
+          <FileUpload label="Favicon do Site" file={selectedFavicon} preview={faviconPreview} onFileChange={handleFileChange(setSelectedFavicon, setFaviconPreview)} currentUrl={settings.faviconUrl} accept="image/x-icon, image/png, image/svg+xml" />
         </div>
       </div>
       
@@ -321,17 +181,11 @@ export default function AppearanceManager({ user }: AppearanceManagerProps) {
         <h2 className="font-serif text-2xl font-semibold text-verde-mata dark:text-dourado-suave mb-4">Plano de Fundo Global</h2>
         <div className="flex items-center justify-between">
             <p className="font-sans text-sm text-marrom-seiva/80 dark:text-creme-velado/80">Usar imagem de fundo em vez de cor sólida.</p>
-            <label htmlFor="useBackgroundImage" className="flex items-center cursor-pointer">
-                <div className="relative">
-                    <input type="checkbox" id="useBackgroundImage" className="sr-only" checked={settings.useBackgroundImage || false} onChange={handleToggleChange} />
-                    <div className={`block w-14 h-8 rounded-full transition-colors ${settings.useBackgroundImage ? 'bg-green-600' : 'bg-marrom-seiva/20 dark:bg-creme-velado/20'}`}></div>
-                    <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${settings.useBackgroundImage ? 'translate-x-6' : ''}`}></div>
-                </div>
-            </label>
+            <label htmlFor="useBackgroundImage" className="flex items-center cursor-pointer"><div className="relative"><input type="checkbox" id="useBackgroundImage" className="sr-only" checked={settings.useBackgroundImage || false} onChange={handleToggleChange} /><div className="block bg-marrom-seiva/20 dark:bg-creme-velado/20 w-14 h-8 rounded-full"></div><div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${settings.useBackgroundImage ? 'translate-x-6 bg-dourado-suave' : ''}`}></div></div></label>
         </div>
         {settings.useBackgroundImage && (
           <div className="mt-4 pt-4 border-t border-marrom-seiva/10 dark:border-creme-velado/10">
-            <div><label className="block font-sans font-semibold text-sm mb-2 text-marrom-seiva dark:text-creme-velado/80">Imagem de Fundo</label><div className="flex items-center gap-4"><div className="w-16 h-16 flex-shrink-0 bg-creme-velado dark:bg-verde-escuro-profundo rounded-lg flex items-center justify-center overflow-hidden"><img src={bgImagePreview || settings.backgroundImageUrl} alt="Preview" className="w-full h-full object-contain" /></div><input type="file" accept="image/jpeg, image/png, image/webp" onChange={handleFileChange(setSelectedBgImage, setBgImagePreview)} className="w-full text-sm font-sans file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-dourado-suave/20 file:text-dourado-suave hover:file:bg-dourado-suave/30"/></div></div>
+            <FileUpload label="Imagem de Fundo" file={selectedBgImage} preview={bgImagePreview} onFileChange={handleFileChange(setSelectedBgImage, setBgImagePreview)} currentUrl={settings.backgroundImageUrl} accept="image/jpeg, image/png, image/webp" />
           </div>
         )}
       </div>
@@ -344,9 +198,9 @@ export default function AppearanceManager({ user }: AppearanceManagerProps) {
           <InputField id="description" label="Descrição" type="textarea" value={settings.heroData?.description || ''} onChange={handleChange} />
           <div className="space-y-2 pt-2">
             <h3 className="block font-sans font-semibold text-sm text-marrom-seiva dark:text-creme-velado/80">Imagem de Fundo do Banner</h3>
-            <div className="flex items-center gap-x-6"><label className="flex items-center space-x-2 cursor-pointer"><input type="radio" name="heroImageSource" value="url" checked={heroImageSource === 'url'} onChange={() => setHeroImageSource('url')} className="accent-dourado-suave"/> <span className="font-sans text-sm">URL Externa</span></label><label className="flex items-center space-x-2 cursor-pointer"><input type="radio" name="heroImageSource" value="upload" checked={heroImageSource === 'upload'} onChange={() => setHeroImageSource('upload')} className="accent-dourado-suave"/> <span className="font-sans text-sm">Upload</span></label></div>
-            {heroImageSource === 'url' && <InputField id="imageUrl" label="" value={settings.heroData?.imageUrl || ''} onChange={handleChange} />}
-            {heroImageSource === 'upload' && <div><div className="flex items-center gap-4"><div className="w-16 h-16 flex-shrink-0 bg-creme-velado dark:bg-verde-escuro-profundo rounded-lg flex items-center justify-center overflow-hidden"><img src={(selectedHeroImage ? URL.createObjectURL(selectedHeroImage) : null) || settings.heroData?.imageUrl} alt="Preview" className="w-full h-full object-contain" /></div><input type="file" accept="image/*" onChange={handleFileChange(setSelectedHeroImage, ()=>{})} className="w-full text-sm font-sans file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-dourado-suave/20 file:text-dourado-suave hover:file:bg-dourado-suave/30"/></div></div>}
+            <div className="flex items-center gap-x-6"><label className="flex items-center space-x-2 cursor-pointer"><input type="radio" name="imageSource" value="url" checked={heroImageSource === 'url'} onChange={() => setHeroImageSource('url')} className="accent-dourado-suave"/> <span className="font-sans text-sm">URL Externa</span></label><label className="flex items-center space-x-2 cursor-pointer"><input type="radio" name="imageSource" value="upload" checked={heroImageSource === 'upload'} onChange={() => setHeroImageSource('upload')} className="accent-dourado-suave"/> <span className="font-sans text-sm">Upload</span></label></div>
+            {heroImageSource === 'url' && <InputField id="imageUrl" label="URL da Imagem" value={settings.heroData?.imageUrl || ''} onChange={handleChange} />}
+            {heroImageSource === 'upload' && <FileUpload label="" file={selectedHeroImage} preview={selectedHeroImage ? URL.createObjectURL(selectedHeroImage) : null} onFileChange={handleFileChange(setSelectedHeroImage, ()=>{})} currentUrl={settings.heroData?.imageUrl} accept="image/*" />}
           </div>
         </div>
       </div>
@@ -355,13 +209,7 @@ export default function AppearanceManager({ user }: AppearanceManagerProps) {
         <h2 className="font-serif text-2xl font-semibold text-verde-mata dark:text-dourado-suave mb-4">Funcionalidades Inteligentes</h2>
         <div className="flex items-start justify-between">
           <div><h3 className="font-sans font-semibold text-verde-mata dark:text-creme-velado">Devocional Diário por IA</h3><p className="text-sm font-sans text-marrom-seiva/80 dark:text-creme-velado/80">Permite que as usuárias acessem um devocional único a cada dia.</p></div>
-          <label htmlFor="isAiDevotionalEnabled" className="flex items-center cursor-pointer">
-            <div className="relative">
-                <input type="checkbox" id="isAiDevotionalEnabled" className="sr-only" checked={settings.isAiDevotionalEnabled || false} onChange={handleToggleChange}/>
-                <div className={`block w-14 h-8 rounded-full transition-colors ${settings.isAiDevotionalEnabled ? 'bg-green-600' : 'bg-marrom-seiva/20 dark:bg-creme-velado/20'}`}></div>
-                <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${settings.isAiDevotionalEnabled ? 'translate-x-6' : ''}`}></div>
-            </div>
-          </label>
+          <label htmlFor="isAiDevotionalEnabled" className="flex items-center cursor-pointer"><div className="relative"><input type="checkbox" id="isAiDevotionalEnabled" className="sr-only" checked={settings.isAiDevotionalEnabled || false} onChange={handleToggleChange}/><div className="block bg-marrom-seiva/20 dark:bg-creme-velado/20 w-14 h-8 rounded-full"></div><div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${settings.isAiDevotionalEnabled ? 'translate-x-6 bg-dourado-suave' : ''}`}></div></div></label>
         </div>
         {settings.isAiDevotionalEnabled && (
             <div className="mt-4 pt-4 border-t border-marrom-seiva/10 dark:border-creme-velado/10">
@@ -371,7 +219,7 @@ export default function AppearanceManager({ user }: AppearanceManagerProps) {
         )}
       </div>
       
-      <div className="flex justify-end items-center gap-4 mt-8">
+      <div className="flex justify-end items-center gap-4">
         {saveSuccess && <p className="text-sm font-semibold text-green-600 dark:text-green-400">Alterações salvas com sucesso!</p>}
         <Button onClick={handleSave} disabled={isSaving}>
             {isSaving ? <Spinner variant="button" /> : 'Salvar Alterações'}

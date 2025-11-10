@@ -20,7 +20,7 @@ const EventCard: React.FC<EventCardProps> = ({ event, onClick }) => {
   return (
     <div onClick={onClick} className="group cursor-pointer bg-branco-nevoa dark:bg-verde-mata rounded-2xl shadow-lg overflow-hidden transition-transform hover:-translate-y-1">
       <div className="relative aspect-video">
-        <img src={event.imageUrl} alt={event.title} loading="lazy" className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+        <img src={event.imageUrl} alt={event.title} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
       </div>
       <div className="p-4">
         <div className="flex justify-between items-center">
@@ -39,4 +39,4 @@ const EventCard: React.FC<EventCardProps> = ({ event, onClick }) => {
   );
 };
 
-export default React.memo(EventCard);
+export default EventCard;

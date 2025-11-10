@@ -10,7 +10,6 @@ interface PlanDetailProps {
   id: string;
   user: User | null;
   onNavigate: (page: Page) => void;
-  onUserUpdate: (updatedData: Partial<User>) => Promise<void>;
 }
 
 const renderMarkdown = (text: string) => {
@@ -24,7 +23,7 @@ const renderMarkdown = (text: string) => {
         ));
 };
 
-export default function PlanDetail({ id, user, onNavigate, onUserUpdate }: PlanDetailProps) {
+export default function PlanDetail({ id, user, onNavigate }: PlanDetailProps) {
   const [plan, setPlan] = useState<ReadingPlan | null>(null);
   const [progress, setProgress] = useState<UserReadingPlanProgress | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -71,12 +70,7 @@ export default function PlanDetail({ id, user, onNavigate, onUserUpdate }: PlanD
 
       setIsUpdating(true);
       const newCompletedDays = [...progress.completedDays, currentDay].sort((a,b) => a-b);
-      const isPlanFinished = newCompletedDays.length === plan.durationDays;
-      
-      // FIX: Passing 'isPlanFinished' argument and checking returned 'updatedUser' to resolve errors.
-      const updatedUser = await updateUserReadingPlanProgress(user.id, plan.id, newCompletedDays, isPlanFinished);
-      if(updatedUser) onUserUpdate(updatedUser);
-
+      await updateUserReadingPlanProgress(user.id, plan.id, newCompletedDays);
       setProgress({ ...progress, completedDays: newCompletedDays });
 
       // Advance to the next uncompleted day
@@ -106,7 +100,7 @@ export default function PlanDetail({ id, user, onNavigate, onUserUpdate }: PlanD
       </button>
 
       <div className="bg-branco-nevoa dark:bg-verde-mata p-6 sm:p-8 rounded-2xl shadow-lg">
-        <h1 className="font-serif text-3xl sm:text-4xl font-bold text-gradient">{plan.title}</h1>
+        <h1 className="font-serif text-3xl sm:text-4xl font-bold text-verde-mata dark:text-dourado-suave">{plan.title}</h1>
         <p className="font-sans text-marrom-seiva/80 dark:text-creme-velado/80 mt-2">{plan.description}</p>
         
         <DayStepper

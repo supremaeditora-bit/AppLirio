@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { onAuthUserChanged } from './services/authService';
 import { getLiveSessions, getAnnouncements, getAppearanceSettings } from './services/api';
@@ -33,6 +34,7 @@ const Events = lazy(() => import('./pages/Events'));
 const EventDetail = lazy(() => import('./pages/EventDetail'));
 const Mentorships = lazy(() => import('./pages/Mentorships'));
 const MyGarden = lazy(() => import('./pages/MyGarden'));
+const Journal = lazy(() => import('./pages/Journal'));
 
 const hexToRgb = (hex: string): string => {
   if (!hex || !hex.startsWith('#')) return '0 0 0';
@@ -56,14 +58,17 @@ export default function App() {
   const [pageKey, setPageKey] = useState(Date.now());
 
   useEffect(() => {
-    // onAuthUserChanged now returns our full User profile or null, and handles daily login
+    // onAuthUserChanged agora retorna nosso perfil de usuário completo ou nulo, e lida com o login diário
     const { data: authListener } = onAuthUserChanged((sessionUser) => {
         setUser(sessionUser);
         if (sessionUser) {
-            if (['login', 'signup', 'landing'].includes(currentPage)) {
-                setCurrentPage('home');
-            }
+            // Se o usuário estiver logado, navegue para home se ele estiver em uma página pública.
+            // Usar a forma de atualização funcional para evitar problemas com closures obsoletas.
+            setCurrentPage(prevPage => 
+                ['login', 'signup', 'landing'].includes(prevPage) ? 'home' : prevPage
+            );
         } else {
+             // Se o usuário não estiver logado, force a navegação para a página de login.
             setCurrentPage('login');
         }
         setAuthChecked(true);
@@ -72,7 +77,7 @@ export default function App() {
     return () => {
         authListener.subscription.unsubscribe();
     };
-  }, [currentPage]);
+  }, []); // O array de dependências vazio garante que isso rode apenas uma vez.
   
   const fetchAnnouncements = useCallback(async () => {
     const activeAnnouncements = await getAnnouncements();
@@ -216,20 +221,21 @@ export default function App() {
       case 'profile': return <Profile user={user} onUserUpdate={handleUserUpdate} onNavigate={handleNavigate} onViewTestimonial={handleViewTestimonial} />;
       case 'devotionals': return <Devotionals onViewDetail={handleViewDetail} user={user} onUserUpdate={handleUserUpdate} />;
       case 'studies': return <Studies user={user} onUserUpdate={handleUserUpdate} setHasNotifications={() => {}} />;
-      case 'lives': return <Lives user={user} onUserUpdate={handleUserUpdate} />;
-      case 'podcasts': return <Podcasts user={user} onUserUpdate={handleUserUpdate}/>;
+      case 'lives': return <Lives user={user} />;
+      case 'podcasts': return <Podcasts user={user} />;
       case 'prayers': return <Prayers user={user} onUserUpdate={handleUserUpdate} />;
       case 'challenges': return <Challenges user={user} onUserUpdate={handleUserUpdate} />;
       case 'mentorships': return <Mentorships onViewDetail={handleViewDetail} user={user} />;
       case 'myGarden': return <MyGarden user={user} />;
+      case 'journal': return <Journal user={user} onNavigate={handleNavigate} />;
       case 'contentDetail': return detailId ? <ContentDetail id={detailId} user={user} onUserUpdate={handleUserUpdate} /> : null;
       case 'testimonials': return <Testimonials onViewTestimonial={handleViewTestimonial} onNavigate={handleNavigate} user={user} />;
       case 'testimonialDetail': return detailId ? <TestimonialDetail id={detailId} user={user} onNavigate={handleNavigate} /> : null;
-      case 'publishTestimonial': return <PublishTestimonial user={user} onNavigate={handleNavigate} />;
+      case 'publishTestimonial': return <PublishTestimonial user={user} onNavigate={handleNavigate} onUserUpdate={handleUserUpdate} />;
       case 'readingPlans': return <ReadingPlans user={user} onNavigate={handleNavigate} />;
-      case 'planDetail': return detailId ? <PlanDetail id={detailId} user={user} onNavigate={handleNavigate} onUserUpdate={handleUserUpdate} /> : null;
+      case 'planDetail': return detailId ? <PlanDetail id={detailId} user={user} onNavigate={handleNavigate} /> : null;
       case 'events': return <Events user={user} onNavigate={handleNavigate} />;
-      case 'eventDetail': return eventDetailId ? <EventDetail id={eventDetailId} user={user} onNavigate={handleNavigate} onUserUpdate={handleUserUpdate} /> : null;
+      case 'eventDetail': return eventDetailId ? <EventDetail id={eventDetailId} user={user} onNavigate={handleNavigate} /> : null;
       case 'admin': return user.role === 'admin' ? <Admin user={user} /> : <Home onNavigate={handleNavigate} user={user} onViewDetail={handleViewDetail} />;
       default: return <Home onNavigate={handleNavigate} user={user} onViewDetail={handleViewDetail} />;
     }
@@ -258,7 +264,7 @@ export default function App() {
         user={user}
         currentPage={currentPage}
         isLiveActive={isLiveActive}
-        logoSettings={appearanceSettings?.logoSettings}
+        logoUrl={appearanceSettings?.logoUrl}
       />
       <div className={`flex-1 flex flex-col h-full overflow-hidden transition-all duration-300 ease-in-out md:pl-64 ${isDesktopSidebarCollapsed ? 'md:!pl-20' : ''}`}>
         <Header 

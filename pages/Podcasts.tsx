@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ContentItem, User } from '../types';
-import { getPodcastEpisodes, markContentAsComplete } from '../services/api';
+import { getPodcastEpisodes } from '../services/api';
 import Spinner from '../components/Spinner';
 import { PlayIcon, PlusIcon, PauseIcon, ForwardIcon, BackwardIcon } from '../components/Icons';
 import Button from '../components/Button';
@@ -9,7 +9,6 @@ import SearchAndFilter from '../components/SearchAndFilter';
 
 interface PodcastsProps {
   user: User | null;
-  onUserUpdate: (updatedData: Partial<User>) => Promise<void>;
 }
 
 const filterOptions = [
@@ -19,7 +18,7 @@ const filterOptions = [
     { value: 'studies', label: 'Estudos' },
 ];
 
-export default function Podcasts({ user, onUserUpdate }: PodcastsProps) {
+export default function Podcasts({ user }: PodcastsProps) {
   const [episodes, setEpisodes] = useState<ContentItem[]>([]);
   const [filteredEpisodes, setFilteredEpisodes] = useState<ContentItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -125,14 +124,6 @@ export default function Podcasts({ user, onUserUpdate }: PodcastsProps) {
         setCurrentTime(newTime);
     }
   };
-
-  const handleEpisodeEnd = async () => {
-    if (user && currentEpisode && !user.completedContentIds.includes(currentEpisode.id)) {
-        const updatedUser = await markContentAsComplete(user.id, currentEpisode.id);
-        if (updatedUser) onUserUpdate(updatedUser);
-    }
-    handleNext();
-  };
   
   const formatTime = (timeInSeconds: number) => {
     if (isNaN(timeInSeconds)) return '00:00';
@@ -160,11 +151,11 @@ export default function Podcasts({ user, onUserUpdate }: PodcastsProps) {
         src={currentEpisode?.audioUrl}
         onTimeUpdate={handleTimeUpdate}
         onLoadedData={handleLoadedData}
-        onEnded={handleEpisodeEnd}
+        onEnded={handleNext}
       />
       <div className="container mx-auto p-4 sm:p-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
-            <h1 className="font-serif text-4xl font-bold text-gradient">Podcasts</h1>
+            <h1 className="font-serif text-4xl font-bold text-verde-mata dark:text-dourado-suave">Podcasts</h1>
             {canCreate && (
                 <Button onClick={() => setIsFormOpen(true)} className="mt-4 sm:mt-0">
                     <PlusIcon className="w-5 h-5 mr-2" />
@@ -177,7 +168,7 @@ export default function Podcasts({ user, onUserUpdate }: PodcastsProps) {
             <section className="mb-12 bg-branco-nevoa dark:bg-verde-mata p-6 rounded-2xl shadow-xl flex flex-col md:flex-row items-center gap-8">
                 <img src={currentEpisode.imageUrl} alt={currentEpisode.title} className="w-full md:w-48 h-48 rounded-lg object-cover flex-shrink-0" />
                 <div className="flex-1 w-full">
-                    <h2 className="font-serif text-3xl font-bold text-gradient line-clamp-2">{currentEpisode.title}</h2>
+                    <h2 className="font-serif text-3xl font-bold text-verde-mata dark:text-dourado-suave line-clamp-2">{currentEpisode.title}</h2>
                     <div className="mt-4 w-full">
                         <input
                             type="range"

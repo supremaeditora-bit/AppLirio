@@ -12,7 +12,7 @@ interface TestimonialsProps {
   user: User | null;
 }
 
-const TestimonialCard: React.FC<{ post: CommunityPost; onCardClick: () => void; user: User | null }> = React.memo(({ post, onCardClick, user }) => {
+const TestimonialCard: React.FC<{ post: CommunityPost; onCardClick: () => void; user: User | null }> = ({ post, onCardClick, user }) => {
     const [reactions, setReactions] = useState(post.reactions);
     const hasReacted = user ? reactions.some(r => r.userId === user.id) : false;
 
@@ -31,13 +31,13 @@ const TestimonialCard: React.FC<{ post: CommunityPost; onCardClick: () => void; 
     return (
         <div onClick={onCardClick} className="bg-branco-nevoa dark:bg-verde-mata p-6 rounded-2xl shadow-lg cursor-pointer transition-transform hover:scale-[1.02]">
             <div className="flex items-center mb-4">
-                <img src={post.author.avatarUrl} alt={post.author.name} loading="lazy" className="w-10 h-10 rounded-full object-cover mr-3" />
+                <img src={post.author.avatarUrl} alt={post.author.name} className="w-10 h-10 rounded-full object-cover mr-3" />
                 <span className="font-sans font-semibold text-verde-mata dark:text-creme-velado">{post.author.name}</span>
             </div>
             
             {post.imageUrl && (
                  <div className="aspect-video rounded-lg overflow-hidden mb-4">
-                    <img src={post.imageUrl} alt={post.title} loading="lazy" className="w-full h-full object-cover"/>
+                    <img src={post.imageUrl} alt={post.title} className="w-full h-full object-cover"/>
                  </div>
             )}
             
@@ -61,8 +61,7 @@ const TestimonialCard: React.FC<{ post: CommunityPost; onCardClick: () => void; 
             </div>
         </div>
     );
-});
-TestimonialCard.displayName = 'TestimonialCard';
+}
 
 const filterOptions = [
     { value: 'Recentes', label: 'Mais Recentes' },
@@ -116,7 +115,7 @@ export default function Testimonials({ onViewTestimonial, onNavigate, user }: Te
         <header className="sticky top-0 z-10 flex items-center justify-between p-4 bg-creme-velado/80 dark:bg-verde-mata/80 backdrop-blur-md border-b border-marrom-seiva/10 dark:border-creme-velado/10">
             <div className="flex items-center space-x-2">
                 <BookOpenIcon className="w-7 h-7 text-verde-mata dark:text-dourado-suave" />
-                <h1 className="font-serif text-xl font-bold text-gradient">Testemunhos de Fé</h1>
+                <h1 className="font-serif text-xl font-bold text-verde-mata dark:text-dourado-suave">Testemunhos de Fé</h1>
             </div>
             <div className="flex items-center gap-4">
                 <Button onClick={() => onNavigate('publishTestimonial')} className="!py-2 !px-4">Adicionar Testemunho</Button>
@@ -124,7 +123,7 @@ export default function Testimonials({ onViewTestimonial, onNavigate, user }: Te
         </header>
 
         <main className="max-w-3xl mx-auto p-4 sm:p-8">
-            <h2 className="font-serif text-4xl font-bold text-gradient">Feed de Testemunhos</h2>
+            <h2 className="font-serif text-4xl font-bold text-verde-mata dark:text-dourado-suave">Feed de Testemunhos</h2>
             
             <div className="my-6">
                 <SearchAndFilter

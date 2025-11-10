@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { ContentItem } from '../types';
 import { PlayCircleIcon, CheckCircleIcon } from './Icons';
@@ -11,16 +12,12 @@ interface ContentCardProps {
 const ContentCard: React.FC<ContentCardProps> = ({ item, onClick, isCompleted }) => {
   return (
     <div 
+      key={item.id}
       onClick={onClick} 
       className="flex-shrink-0 w-40 sm:w-48 md:w-56 group cursor-pointer"
     >
       <div className="relative aspect-[3/4] rounded-xl overflow-hidden shadow-lg bg-parchment-light dark:bg-parchment-dark">
-        <img 
-          src={item.imageUrl} 
-          alt={item.title} 
-          loading="lazy"
-          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" 
-        />
+        <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
 
         {item.badge && (
@@ -56,4 +53,4 @@ const ContentCard: React.FC<ContentCardProps> = ({ item, onClick, isCompleted })
   );
 };
 
-export default React.memo(ContentCard);
+export default ContentCard;

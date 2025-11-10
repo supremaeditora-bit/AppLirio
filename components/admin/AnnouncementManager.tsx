@@ -31,35 +31,15 @@ export default function AnnouncementManager() {
       } else {
           await createAnnouncement(isEditing as Omit<Announcement, 'id' | 'createdAt'>);
       }
-      document.dispatchEvent(new CustomEvent('announcementsUpdated'));
       setIsSaving(false);
       setIsEditing(null);
       fetchAnnouncements();
   }
 
-  const handleToggleActive = async (annToToggle: Announcement) => {
-    // Optimistic UI Update
-    setAnnouncements(prevAnnouncements =>
-      prevAnnouncements.map(ann =>
-        ann.id === annToToggle.id ? { ...ann, isActive: !ann.isActive } : ann
-      )
-    );
-
-    // API call in the background
-    try {
-      await updateAnnouncement(annToToggle.id, { isActive: !annToToggle.isActive });
-      document.dispatchEvent(new CustomEvent('announcementsUpdated'));
-    } catch (error) {
-      console.error('Failed to update announcement status:', error);
-      // Revert on failure
-      setAnnouncements(prevAnnouncements =>
-        prevAnnouncements.map(ann =>
-          ann.id === annToToggle.id ? { ...ann, isActive: annToToggle.isActive } : ann
-        )
-      );
-      alert('Falha ao atualizar o status do anúncio.');
-    }
-  };
+  const handleToggleActive = async (ann: Announcement) => {
+      await updateAnnouncement(ann.id, { isActive: !ann.isActive });
+      fetchAnnouncements();
+  }
 
   if (isLoading) {
     return <div className="flex justify-center py-10"><Spinner /></div>;
@@ -100,8 +80,8 @@ export default function AnnouncementManager() {
                     <label className="flex items-center cursor-pointer">
                         <div className="relative">
                             <input type="checkbox" className="sr-only" checked={ann.isActive} onChange={() => handleToggleActive(ann)} />
-                            <div className={`block w-10 h-6 rounded-full transition-colors ${ann.isActive ? 'bg-green-600' : 'bg-marrom-seiva/20 dark:bg-creme-velado/20'}`}></div>
-                            <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${ann.isActive ? 'translate-x-4' : ''}`}></div>
+                            <div className="block bg-marrom-seiva/20 dark:bg-creme-velado/20 w-10 h-6 rounded-full"></div>
+                            <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${ann.isActive ? 'translate-x-4 bg-dourado-suave' : ''}`}></div>
                         </div>
                     </label>
                 </div>

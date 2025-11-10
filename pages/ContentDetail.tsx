@@ -11,12 +11,11 @@ import {
 } from '../services/api';
 import { ContentItem, User, GeneratedDevotional, Comment, Page } from '../types';
 import Spinner from '../components/Spinner';
-import { PlayIcon, CheckCircleIcon, HeartIcon, ChatBubbleIcon, PaperAirplaneIcon, TrashIcon, DownloadIcon, JournalIcon } from '../components/Icons';
+import { PlayIcon, CheckCircleIcon, HeartIcon, ChatBubbleIcon, PaperAirplaneIcon, TrashIcon, DownloadIcon } from '../components/Icons';
 import AudioPlayer from '../components/AudioPlayer';
 import VideoPlayer from '../components/VideoPlayer';
 import Button from '../components/Button';
 import ConfirmationModal from '../components/ConfirmationModal';
-import JournalPanel from '../components/JournalPanel';
 
 interface ContentDetailProps {
   id: string;
@@ -56,7 +55,6 @@ export default function ContentDetail({ id, user, onUserUpdate }: ContentDetailP
   const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null);
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
-  const [isJournalOpen, setIsJournalOpen] = useState(false);
 
   const fetchItem = async () => {
     setIsLoading(true);
@@ -110,8 +108,10 @@ export default function ContentDetail({ id, user, onUserUpdate }: ContentDetailP
         });
         setIsCompleted(false);
       } else {
-        const updatedUser = await markContentAsComplete(user.id, item.id);
-        if (updatedUser) onUserUpdate(updatedUser);
+        await markContentAsComplete(user.id, item.id);
+        onUserUpdate({ 
+          completedContentIds: [...user.completedContentIds, item.id],
+        });
         setIsCompleted(true);
       }
     } catch (error) {
@@ -155,8 +155,7 @@ export default function ContentDetail({ id, user, onUserUpdate }: ContentDetailP
   const handleCommentSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!commentText.trim() || !user || !item) return;
-      const updatedUser = await addCommentToContent(item.id, commentText, user);
-      if(updatedUser) onUserUpdate(updatedUser);
+      await addCommentToContent(item.id, commentText, user);
       setCommentText('');
       fetchItem(); // Re-fetch to get new comments
   };
@@ -206,7 +205,6 @@ export default function ContentDetail({ id, user, onUserUpdate }: ContentDetailP
   const hasReacted = user ? item.reactions.some(r => r.userId === user.id) : false;
 
   return (
-    <>
     <div className="relative">
         <div className="h-[40vh] sm:h-[50vh] w-full relative">
             <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover"/>
@@ -215,7 +213,7 @@ export default function ContentDetail({ id, user, onUserUpdate }: ContentDetailP
         <div className="container mx-auto p-4 sm:p-8 -mt-24 relative z-10">
             <div className="max-w-4xl mx-auto">
                 <span className="font-sans text-dourado-suave font-semibold tracking-wider">{item.type}</span>
-                <h1 className="font-serif text-4xl sm:text-5xl font-bold my-2 text-gradient">
+                <h1 className="font-serif text-4xl sm:text-5xl font-bold my-2 text-verde-mata dark:text-dourado-suave">
                     {item.title}
                 </h1>
                 <p className="font-sans text-lg text-marrom-seiva/80 dark:text-creme-velado/80">{item.subtitle}</p>
@@ -230,10 +228,6 @@ export default function ContentDetail({ id, user, onUserUpdate }: ContentDetailP
                     <Button onClick={handleToggleComplete} variant={isCompleted ? 'secondary' : 'primary'} disabled={isUpdating}>
                         <CheckCircleIcon className="w-5 h-5 mr-2" />
                         {isCompleted ? 'Concluído' : 'Marcar como Concluído'}
-                    </Button>
-                     <Button onClick={() => setIsJournalOpen(true)} variant="secondary">
-                        <JournalIcon className="w-5 h-5 mr-2" />
-                        Meu Diário
                     </Button>
                     {item.downloadableResource?.url && (
                         <a href={item.downloadableResource.url} download target="_blank" rel="noopener noreferrer">
@@ -257,7 +251,7 @@ export default function ContentDetail({ id, user, onUserUpdate }: ContentDetailP
                         
                         {(item.type === 'Live' || item.type === 'Mentoria') && item.actionUrl && (
                             <div>
-                                <h2 className="font-serif text-3xl font-bold text-gradient mb-4">
+                                <h2 className="font-serif text-3xl font-bold text-verde-mata dark:text-dourado-suave mb-4">
                                     {item.type === 'Live' ? 'Assista a Gravação' : 'Assista à Aula'}
                                 </h2>
                                 <VideoPlayer youtubeId={extractYoutubeId(item.actionUrl)} />
@@ -286,10 +280,10 @@ export default function ContentDetail({ id, user, onUserUpdate }: ContentDetailP
                         </div>
 
                         <div className="mt-6">
-                            <h3 className="font-serif text-2xl font-bold text-gradient mb-4">Discussão</h3>
+                            <h3 className="font-serif text-2xl font-bold text-verde-mata dark:text-dourado-suave mb-4">Discussão</h3>
                             {user && (
                                 <form onSubmit={handleCommentSubmit} className="mb-6 flex items-start space-x-3">
-                                    <img src={user.avatarUrl} alt={user.displayName} className="w-10 h-10 rounded-full object-cover"/>
+                                    <img src={user.avatarUrl} alt={user.fullName} className="w-10 h-10 rounded-full object-cover"/>
                                     <div className="flex-1 relative">
                                         <textarea placeholder="Deixe sua dúvida ou comentário..." value={commentText} onChange={(e) => setCommentText(e.target.value)} className="w-full font-sans bg-branco-nevoa dark:bg-verde-mata border-2 border-marrom-seiva/20 dark:border-creme-velado/20 rounded-xl p-3 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-dourado-suave" rows={3}/>
                                         <button type="submit" className="absolute right-3 bottom-3 p-2 rounded-full text-dourado-suave hover:bg-dourado-suave/10 disabled:opacity-50" disabled={!commentText.trim()}><PaperAirplaneIcon className="w-5 h-5" /></button>
@@ -343,15 +337,5 @@ export default function ContentDetail({ id, user, onUserUpdate }: ContentDetailP
             />
         )}
     </div>
-    {user && (
-      <JournalPanel 
-        isOpen={isJournalOpen} 
-        onClose={() => setIsJournalOpen(false)} 
-        user={user} 
-        relatedContent={{id: item.id, title: item.title}}
-        onUserUpdate={onUserUpdate}
-      />
-    )}
-    </>
   );
 }

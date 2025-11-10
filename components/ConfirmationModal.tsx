@@ -11,8 +11,6 @@ interface ConfirmationModalProps {
   confirmText?: string;
   cancelText?: string;
   isLoading?: boolean;
-  // FIX: Added optional confirmVariant prop to allow for different button styles.
-  confirmVariant?: 'primary' | 'danger';
 }
 
 export default function ConfirmationModal({
@@ -24,15 +22,7 @@ export default function ConfirmationModal({
   confirmText = 'Confirmar',
   cancelText = 'Cancelar',
   isLoading = false,
-  // FIX: Default confirmVariant to 'danger' to maintain existing behavior where this prop is not provided.
-  confirmVariant = 'danger',
 }: ConfirmationModalProps) {
-
-  // FIX: Conditionally apply danger styles based on the confirmVariant prop.
-  const confirmButtonClasses = confirmVariant === 'danger'
-    ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500 text-white dark:text-white'
-    : '';
-
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title}>
       <div>
@@ -41,7 +31,7 @@ export default function ConfirmationModal({
           <Button variant="secondary" onClick={onClose} disabled={isLoading}>
             {cancelText}
           </Button>
-          <Button variant="primary" onClick={onConfirm} disabled={isLoading} className={confirmButtonClasses}>
+          <Button variant="primary" onClick={onConfirm} disabled={isLoading} className="bg-red-600 hover:bg-red-700 focus:ring-red-500 text-white dark:text-white">
             {isLoading ? '...' : confirmText}
           </Button>
         </div>

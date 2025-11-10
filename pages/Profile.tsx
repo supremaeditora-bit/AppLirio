@@ -1,16 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, Notification, Page, CommunityPost, Event, JournalEntry } from '../types';
+import { User, Notification, Page, CommunityPost, Event } from '../types';
 import Spinner from '../components/Spinner';
 import Modal from '../components/Modal';
 import InputField from '../components/InputField';
 import Button from '../components/Button';
-import { getNotifications, getCommunityPosts, updateCommunityPost, deleteCommunityPost, getEvents, getJournalEntries, createJournalEntry, updateJournalEntry, deleteJournalEntry } from '../services/api';
+import { getNotifications, getCommunityPosts, updateCommunityPost, deleteCommunityPost, getEvents } from '../services/api';
 import { updateUserProfileDocument } from '../services/authService';
 import { uploadImage } from '../services/storageService';
-import { BookmarkIcon, UserCircleIcon, BellIcon, PrayingHandsIcon, PencilIcon, TrashIcon, CalendarDaysIcon, CameraIcon, MapPinIcon, HomeModernIcon, InstagramIcon, FacebookIcon, JournalIcon, PlusIcon, BookOpenIcon } from '../components/Icons';
+import { BookmarkIcon, UserCircleIcon, BellIcon, PrayingHandsIcon, PencilIcon, TrashIcon, CalendarDaysIcon, CameraIcon, MapPinIcon, HomeModernIcon, InstagramIcon, FacebookIcon } from '../components/Icons';
 import ConfirmationModal from '../components/ConfirmationModal';
 import ProgressBar from '../components/ProgressBar';
-import { LEVELS } from '../services/gamificationConstants';
 
 interface ProfileProps {
     user: User | null;
@@ -19,10 +18,17 @@ interface ProfileProps {
     onViewTestimonial: (id: string) => void;
 }
 
+const levelData: { [key: string]: { nextLevel: string, points: number } } = {
+    'Iniciante da Fé': { nextLevel: 'Aprendiz da Palavra', points: 1000 },
+    'Aprendiz da Palavra': { nextLevel: 'Guerreira de Oração', points: 2500 },
+    'Guerreira de Oração': { nextLevel: 'Mentora de Fé', points: 5000 },
+    'Mentora de Fé': { nextLevel: 'Mentora de Fé', points: 5000 }
+};
+
 const ProfilePostCard: React.FC<{ post: CommunityPost, onCardClick: () => void }> = ({ post, onCardClick }) => (
     <div onClick={onCardClick} className="group cursor-pointer">
         <div className="relative aspect-[4/3] rounded-xl overflow-hidden shadow-lg bg-parchment-light dark:bg-parchment-dark">
-            <img src={post.imageUrl || 'https://images.unsplash.com/photo-1518429023537-215d2a1b2413?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=870&q=80'} alt={post.title} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+            <img src={post.imageUrl || 'https://images.unsplash.com/photo-1518429023537-215d2a1b2413?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG9otby1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=870&q=80'} alt={post.title} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
             <div className="absolute bottom-0 left-0 p-3 text-white">
                 <h3 className="font-serif font-semibold leading-tight">{post.title}</h3>
@@ -90,16 +96,16 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
   const [isEditModalOpen, setEditModalOpen] = useState(false);
   const [editedUser, setEditedUser] = useState<Partial<User>>({});
   const [isUpdating, setIsUpdating] = useState(false);
+  const [updateError, setUpdateError] = useState('');
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
-  const [activeTab, setActiveTab] = useState<'meus' | 'salvos' | 'notificacoes' | 'oracoes' | 'eventos' | 'diario'>('meus');
+  const [activeTab, setActiveTab] = useState<'meus' | 'salvos' | 'notificacoes' | 'oracoes' | 'eventos'>('meus');
   
   // Data States
   const [allTestimonials, setAllTestimonials] = useState<CommunityPost[]>([]);
   const [prayerRequests, setPrayerRequests] = useState<CommunityPost[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [myEvents, setMyEvents] = useState<Event[]>([]);
-  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
   // Prayer Request management
@@ -111,41 +117,31 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
   const [postToDelete, setPostToDelete] = useState<CommunityPost | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  // Journal management
-  const [isJournalFormOpen, setIsJournalFormOpen] = useState(false);
-  const [editingJournalEntry, setEditingJournalEntry] = useState<JournalEntry | null>(null);
-  const [journalTitle, setJournalTitle] = useState('');
-  const [journalContent, setJournalContent] = useState('');
-  const [journalEntryToDelete, setJournalEntryToDelete] = useState<JournalEntry | null>(null);
-  const [isConfirmJournalDeleteOpen, setIsConfirmJournalDeleteOpen] = useState(false);
 
 
   const fetchProfileData = async () => {
       if (!user) return;
       setIsLoadingData(true);
-      const [posts, notifs, prayers, allEvents, journalData] = await Promise.all([
+      const [posts, notifs, prayers, allEvents] = await Promise.all([
           getCommunityPosts('testemunhos'),
           getNotifications(),
           getCommunityPosts('oracao'),
           getEvents(),
-          getJournalEntries(user.id),
       ]);
       setAllTestimonials(posts);
       setNotifications(notifs);
       setPrayerRequests(prayers);
       setMyEvents(allEvents.filter(e => e.attendeeIds.includes(user.id)));
-      setJournalEntries(journalData);
       setIsLoadingData(false);
   }
 
   useEffect(() => {
     if (user) {
       setEditedUser({
-        displayName: user.displayName,
+        fullName: user.fullName,
         cidade: user.cidade,
         igreja: user.igreja,
-        bio: user.bio,
+        biography: user.biography,
         socialLinks: user.socialLinks || {},
       });
       fetchProfileData();
@@ -159,27 +155,37 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
   const handleOpenEditModal = () => {
     if (user) {
       setEditedUser({
-        displayName: user.displayName,
+        fullName: user.fullName,
         cidade: user.cidade,
         igreja: user.igreja,
-        bio: user.bio,
+        biography: user.biography,
         socialLinks: user.socialLinks || {},
       });
+      setUpdateError('');
       setEditModalOpen(true);
     }
   };
 
   const handleUpdate = async () => {
     if (!user) return;
+
+    if (!editedUser.fullName || editedUser.fullName.trim() === '') {
+        setUpdateError("O nome não pode ficar em branco.");
+        return;
+    }
+
     setIsUpdating(true);
+    setUpdateError('');
     try {
         await updateUserProfileDocument(user.id, editedUser);
         await onUserUpdate(editedUser);
-    } catch (error) {
-        console.error("Failed to update profile", error);
+        setEditModalOpen(false);
+    } catch (error: any) {
+        const errorMessage = "Falha ao atualizar o perfil. Tente novamente mais tarde.";
+        setUpdateError(errorMessage);
+        console.error("Failed to update profile:", error.message || error);
     } finally {
         setIsUpdating(false);
-        setEditModalOpen(false);
     }
   };
 
@@ -234,81 +240,12 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
       setPostToDelete(null);
       fetchProfileData();
   };
-
-    const handleOpenJournalForm = (entry: JournalEntry | null) => {
-        setEditingJournalEntry(entry);
-        if (entry) {
-            setJournalTitle(entry.title);
-            setJournalContent(entry.content);
-        } else {
-            setJournalTitle('');
-            setJournalContent('');
-        }
-        setIsJournalFormOpen(true);
-    };
-
-    const handleSaveJournalEntry = async () => {
-        if (!journalTitle.trim() || !journalContent.trim() || !user) return;
-        setIsSubmitting(true);
-        try {
-            if (editingJournalEntry) {
-                await updateJournalEntry(editingJournalEntry.id, journalContent, journalTitle);
-            } else {
-                await createJournalEntry({ userId: user.id, title: journalTitle, content: journalContent });
-            }
-        } catch(error) {
-            console.error("Failed to save journal entry", error);
-        } finally {
-            setIsJournalFormOpen(false);
-            setEditingJournalEntry(null);
-            await fetchProfileData();
-            setIsSubmitting(false);
-        }
-    };
-    
-    const handleOpenConfirmJournalDelete = (entry: JournalEntry) => {
-        setJournalEntryToDelete(entry);
-        setIsConfirmJournalDeleteOpen(true);
-    };
-
-    const handleDeleteJournalEntry = async () => {
-        if (!journalEntryToDelete) return;
-        await deleteJournalEntry(journalEntryToDelete.id);
-        setIsConfirmJournalDeleteOpen(false);
-        setJournalEntryToDelete(null);
-        await fetchProfileData();
-    };
   
   if (!user) {
     return <div className="flex items-center justify-center h-full"><Spinner /></div>;
   }
   
-  const userLevelInfo = LEVELS[user.level] || LEVELS['Árvore Frutífera'];
-
-  const JournalEntryCard: React.FC<{
-        entry: JournalEntry;
-        onEdit: (entry: JournalEntry) => void;
-        onDelete: (entry: JournalEntry) => void;
-    }> = ({ entry, onEdit, onDelete }) => (
-        <div className="bg-branco-nevoa dark:bg-verde-mata p-4 rounded-xl shadow flex justify-between items-start gap-4 cursor-pointer" onClick={() => onEdit(entry)}>
-            <div>
-                <h3 className="font-serif font-semibold text-verde-mata dark:text-creme-velado">{entry.title}</h3>
-                <p className="font-sans text-xs text-marrom-seiva/60 dark:text-creme-velado/60 mt-1">
-                    {new Date(entry.updatedAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
-                </p>
-                <p className="font-sans text-sm text-marrom-seiva/80 dark:text-creme-velado/80 mt-2 line-clamp-2">{entry.content}</p>
-                 {entry.relatedContentTitle && <p className="text-xs text-dourado-suave mt-2 flex items-center gap-1"><BookOpenIcon className="w-3 h-3"/> Relacionado a: {entry.relatedContentTitle}</p>}
-            </div>
-            <div className="flex-shrink-0 flex items-center space-x-1">
-                <button onClick={(e) => { e.stopPropagation(); onEdit(entry); }} className="p-2 text-marrom-seiva/70 hover:text-dourado-suave dark:text-creme-velado/70 dark:hover:text-dourado-suave">
-                    <PencilIcon className="w-5 h-5" />
-                </button>
-                <button onClick={(e) => { e.stopPropagation(); onDelete(entry); }} className="p-2 text-marrom-seiva/70 hover:text-red-500 dark:text-creme-velado/70 dark:hover:text-red-500">
-                    <TrashIcon className="w-5 h-5" />
-                </button>
-            </div>
-        </div>
-    );
+  const userLevelInfo = levelData[user.level] || levelData['Mentora de Fé'];
 
   return (
     <>
@@ -318,20 +255,20 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
                 <div className="flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-6">
                     <div className="relative group flex-shrink-0">
                         <input type="file" ref={avatarInputRef} onChange={handleAvatarChange} hidden accept="image/*" />
-                        <img src={user.avatarUrl} alt={user.displayName} className="w-32 h-32 rounded-full object-cover border-4 border-dourado-suave" />
+                        <img src={user.avatarUrl} alt={user.fullName} className="w-32 h-32 rounded-full object-cover border-4 border-dourado-suave" />
                         <button onClick={() => avatarInputRef.current?.click()} className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity" disabled={isUploadingAvatar}>
                             {isUploadingAvatar ? <Spinner variant='button' /> : <CameraIcon className="w-8 h-8"/>}
                         </button>
                     </div>
                     <div className="flex-1">
                         <div className="flex flex-col sm:flex-row justify-between items-center">
-                            <h1 className="font-serif text-3xl font-bold text-verde-mata dark:text-dourado-suave">{user.displayName}</h1>
+                            <h1 className="font-serif text-3xl font-bold text-verde-mata dark:text-dourado-suave">{user.fullName}</h1>
                             <Button onClick={handleOpenEditModal} variant="secondary" className="mt-2 sm:mt-0 !py-2 !px-4">
                                 <PencilIcon className="w-4 h-4 mr-2" /> Editar Perfil
                             </Button>
                         </div>
                         <p className="font-sans text-marrom-seiva/80 dark:text-creme-velado/80 mt-2 text-sm leading-relaxed">
-                            {user.bio || 'Uma breve biografia sobre a jornada de fé do usuário e seus interesses.'}
+                            {user.biography || 'Uma breve biografia sobre a jornada de fé do usuário e seus interesses.'}
                         </p>
                         <div className="mt-4 space-y-2 text-sm text-marrom-seiva dark:text-creme-velado/90">
                             {user.cidade && <p className="flex items-center justify-center sm:justify-start gap-2"><MapPinIcon className="w-4 h-4 text-marrom-seiva/60 dark:text-creme-velado/60"/> {user.cidade}</p>}
@@ -346,7 +283,7 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
                  <div className="mt-6 pt-4 border-t border-marrom-seiva/10 dark:border-creme-velado/10">
                     <div className="flex justify-between items-center font-sans text-sm font-semibold text-marrom-seiva/80 dark:text-creme-velado/80">
                         <span>Nível: {user.level}</span>
-                        <span>💧 {user.points} / {userLevelInfo.points}</span>
+                        <span>{user.points} / {userLevelInfo.points} pts</span>
                     </div>
                     <div className="mt-2">
                         <ProgressBar current={user.points} max={userLevelInfo.points} />
@@ -355,24 +292,21 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
             </div>
 
             <main>
-                <div className="mb-6">
-                    <nav className="flex space-x-2 overflow-x-auto scrollbar-hide pb-2">
-                        <button onClick={() => setActiveTab('meus')} className={`flex items-center gap-2 whitespace-nowrap py-2 px-4 rounded-full font-sans font-semibold text-sm transition-colors duration-200 ${activeTab === 'meus' ? 'bg-verde-mata text-creme-velado dark:bg-dourado-suave dark:text-verde-mata' : 'bg-marrom-seiva/5 text-marrom-seiva/80 hover:bg-marrom-seiva/10 dark:bg-creme-velado/5 dark:text-creme-velado/80 dark:hover:bg-creme-velado/10'}`}>
+                <div className="border-b border-marrom-seiva/20 dark:border-creme-velado/20 mb-6">
+                    <nav className="-mb-px flex space-x-6 overflow-x-auto scrollbar-hide">
+                        <button onClick={() => setActiveTab('meus')} className={`flex items-center gap-2 whitespace-nowrap py-3 px-1 border-b-2 font-sans font-semibold text-base ${activeTab === 'meus' ? 'border-dourado-suave text-dourado-suave' : 'border-transparent text-marrom-seiva/70 dark:text-creme-velado/70'}`}>
                             <UserCircleIcon className="w-5 h-5" /> Meus Testemunhos
                         </button>
-                        <button onClick={() => setActiveTab('oracoes')} className={`flex items-center gap-2 whitespace-nowrap py-2 px-4 rounded-full font-sans font-semibold text-sm transition-colors duration-200 ${activeTab === 'oracoes' ? 'bg-verde-mata text-creme-velado dark:bg-dourado-suave dark:text-verde-mata' : 'bg-marrom-seiva/5 text-marrom-seiva/80 hover:bg-marrom-seiva/10 dark:bg-creme-velado/5 dark:text-creme-velado/80 dark:hover:bg-creme-velado/10'}`}>
+                            <button onClick={() => setActiveTab('oracoes')} className={`flex items-center gap-2 whitespace-nowrap py-3 px-1 border-b-2 font-sans font-semibold text-base ${activeTab === 'oracoes' ? 'border-dourado-suave text-dourado-suave' : 'border-transparent text-marrom-seiva/70 dark:text-creme-velado/70'}`}>
                             <PrayingHandsIcon className="w-5 h-5" /> Meus Pedidos
                         </button>
-                         <button onClick={() => setActiveTab('diario')} className={`flex items-center gap-2 whitespace-nowrap py-2 px-4 rounded-full font-sans font-semibold text-sm transition-colors duration-200 ${activeTab === 'diario' ? 'bg-verde-mata text-creme-velado dark:bg-dourado-suave dark:text-verde-mata' : 'bg-marrom-seiva/5 text-marrom-seiva/80 hover:bg-marrom-seiva/10 dark:bg-creme-velado/5 dark:text-creme-velado/80 dark:hover:bg-creme-velado/10'}`}>
-                            <JournalIcon className="w-5 h-5" /> Diário
-                        </button>
-                        <button onClick={() => setActiveTab('salvos')} className={`flex items-center gap-2 whitespace-nowrap py-2 px-4 rounded-full font-sans font-semibold text-sm transition-colors duration-200 ${activeTab === 'salvos' ? 'bg-verde-mata text-creme-velado dark:bg-dourado-suave dark:text-verde-mata' : 'bg-marrom-seiva/5 text-marrom-seiva/80 hover:bg-marrom-seiva/10 dark:bg-creme-velado/5 dark:text-creme-velado/80 dark:hover:bg-creme-velado/10'}`}>
+                        <button onClick={() => setActiveTab('salvos')} className={`flex items-center gap-2 whitespace-nowrap py-3 px-1 border-b-2 font-sans font-semibold text-base ${activeTab === 'salvos' ? 'border-dourado-suave text-dourado-suave' : 'border-transparent text-marrom-seiva/70 dark:text-creme-velado/70'}`}>
                             <BookmarkIcon className="w-5 h-5" /> Testemunhos Salvos
                         </button>
-                        <button onClick={() => setActiveTab('eventos')} className={`flex items-center gap-2 whitespace-nowrap py-2 px-4 rounded-full font-sans font-semibold text-sm transition-colors duration-200 ${activeTab === 'eventos' ? 'bg-verde-mata text-creme-velado dark:bg-dourado-suave dark:text-verde-mata' : 'bg-marrom-seiva/5 text-marrom-seiva/80 hover:bg-marrom-seiva/10 dark:bg-creme-velado/5 dark:text-creme-velado/80 dark:hover:bg-creme-velado/10'}`}>
+                        <button onClick={() => setActiveTab('eventos')} className={`flex items-center gap-2 whitespace-nowrap py-3 px-1 border-b-2 font-sans font-semibold text-base ${activeTab === 'eventos' ? 'border-dourado-suave text-dourado-suave' : 'border-transparent text-marrom-seiva/70 dark:text-creme-velado/70'}`}>
                             <CalendarDaysIcon className="w-5 h-5" /> Meus Eventos
                         </button>
-                        <button onClick={() => setActiveTab('notificacoes')} className={`flex items-center gap-2 whitespace-nowrap py-2 px-4 rounded-full font-sans font-semibold text-sm transition-colors duration-200 ${activeTab === 'notificacoes' ? 'bg-verde-mata text-creme-velado dark:bg-dourado-suave dark:text-verde-mata' : 'bg-marrom-seiva/5 text-marrom-seiva/80 hover:bg-marrom-seiva/10 dark:bg-creme-velado/5 dark:text-creme-velado/80 dark:hover:bg-creme-velado/10'}`}>
+                            <button onClick={() => setActiveTab('notificacoes')} className={`flex items-center gap-2 whitespace-nowrap py-3 px-1 border-b-2 font-sans font-semibold text-base ${activeTab === 'notificacoes' ? 'border-dourado-suave text-dourado-suave' : 'border-transparent text-marrom-seiva/70 dark:text-creme-velado/70'}`}>
                             <BellIcon className="w-5 h-5" /> Notificações
                         </button>
                     </nav>
@@ -388,35 +322,12 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
                     <p className="text-center p-8 text-marrom-seiva/70 dark:text-creme-velado/70">Você ainda não publicou nenhum testemunho.</p>
                 )}
 
-                {!isLoadingData && activeTab === 'oracoes' && (
+                    {!isLoadingData && activeTab === 'oracoes' && (
                     myPrayerRequests.length > 0 ?
                     <div className="space-y-4">
                         {myPrayerRequests.map(post => <PrayerRequestCard key={post.id} post={post} onEdit={handleOpenPrayerForm} onDelete={handleOpenConfirmDelete} />)}
                     </div> :
                     <p className="text-center p-8 text-marrom-seiva/70 dark:text-creme-velado/70">Você ainda não fez nenhum pedido de oração.</p>
-                )}
-
-                {!isLoadingData && activeTab === 'diario' && (
-                    <div className="space-y-4">
-                        <div className="text-right">
-                            <Button onClick={() => handleOpenJournalForm(null)} variant="primary">
-                                <PlusIcon className="w-5 h-5 mr-2" />
-                                Nova Anotação
-                            </Button>
-                        </div>
-                        {journalEntries.length > 0 ? (
-                            journalEntries.map(entry => (
-                                <JournalEntryCard 
-                                    key={entry.id} 
-                                    entry={entry} 
-                                    onEdit={handleOpenJournalForm} 
-                                    onDelete={handleOpenConfirmJournalDelete} 
-                                />
-                            ))
-                        ) : (
-                            <p className="text-center p-8 text-marrom-seiva/70 dark:text-creme-velado/70">Você ainda não escreveu nenhuma anotação no diário.</p>
-                        )}
-                    </div>
                 )}
 
                 {!isLoadingData && activeTab === 'salvos' && (
@@ -450,13 +361,14 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
     
     <Modal isOpen={isEditModalOpen} onClose={() => setEditModalOpen(false)} title="Editar Perfil">
         <div className="space-y-4">
-            <InputField id="displayName" label="Nome" value={editedUser.displayName || ''} onChange={(e) => setEditedUser({...editedUser, displayName: e.target.value})} />
-            <InputField id="bio" label="Sua Bio" type="textarea" value={editedUser.bio || ''} onChange={(e) => setEditedUser({...editedUser, bio: e.target.value})} />
+            <InputField id="fullName" label="Nome" value={editedUser.fullName || ''} onChange={(e) => setEditedUser({...editedUser, fullName: e.target.value})} />
+            <InputField id="biography" label="Sua Bio" type="textarea" value={editedUser.biography || ''} onChange={(e) => setEditedUser({...editedUser, biography: e.target.value})} />
             <InputField id="cidade" label="Cidade e Estado" placeholder="Ex: São Paulo, SP" value={editedUser.cidade || ''} onChange={(e) => setEditedUser({...editedUser, cidade: e.target.value})} />
             <InputField id="igreja" label="Sua Igreja" placeholder="Ex: Igreja da Cidade" value={editedUser.igreja || ''} onChange={(e) => setEditedUser({...editedUser, igreja: e.target.value})} />
             <InputField id="instagram" label="Instagram (usuário)" value={editedUser.socialLinks?.instagram || ''} onChange={(e) => setEditedUser({...editedUser, socialLinks: {...(editedUser.socialLinks || {}), instagram: e.target.value}})} />
             <InputField id="facebook" label="Facebook (usuário)" value={editedUser.socialLinks?.facebook || ''} onChange={(e) => setEditedUser({...editedUser, socialLinks: {...(editedUser.socialLinks || {}), facebook: e.target.value}})} />
         </div>
+        {updateError && <p className="text-red-500 text-sm text-center mt-4">{updateError}</p>}
         <div className="mt-6 flex justify-end space-x-4">
             <Button variant="secondary" onClick={() => setEditModalOpen(false)} disabled={isUpdating}>Cancelar</Button>
             <Button variant="primary" onClick={handleUpdate} disabled={isUpdating}>
@@ -481,19 +393,6 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
             </Button>
         </div>
     </Modal>
-    
-    <Modal isOpen={isJournalFormOpen} onClose={() => setIsJournalFormOpen(false)} title={editingJournalEntry ? 'Editar Anotação' : 'Nova Anotação'}>
-        <div className="space-y-4">
-            <InputField id="journalTitle" label="Título" value={journalTitle} onChange={(e) => setJournalTitle(e.target.value)} />
-            <InputField id="journalContent" label="Conteúdo" type="textarea" value={journalContent} onChange={(e) => setJournalContent(e.target.value)} rows={10} />
-        </div>
-        <div className="mt-6 flex justify-end space-x-4">
-            <Button variant="secondary" onClick={() => setIsJournalFormOpen(false)} disabled={isSubmitting}>Cancelar</Button>
-            <Button variant="primary" onClick={handleSaveJournalEntry} disabled={isSubmitting}>
-                {isSubmitting ? <Spinner variant="button" /> : 'Salvar'}
-            </Button>
-        </div>
-    </Modal>
 
     {postToDelete && (
         <ConfirmationModal
@@ -502,17 +401,6 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
             onConfirm={handleDeletePost}
             title="Confirmar Exclusão"
             message={`Tem certeza que deseja excluir o post "${postToDelete.title}"?`}
-            confirmText="Excluir"
-        />
-    )}
-
-    {journalEntryToDelete && (
-        <ConfirmationModal
-            isOpen={isConfirmJournalDeleteOpen}
-            onClose={() => setIsConfirmJournalDeleteOpen(false)}
-            onConfirm={handleDeleteJournalEntry}
-            title="Confirmar Exclusão"
-            message={`Tem certeza que deseja excluir a anotação "${journalEntryToDelete.title}"?`}
             confirmText="Excluir"
         />
     )}

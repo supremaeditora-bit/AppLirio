@@ -127,7 +127,7 @@ export default function Journal({ user, onNavigate }: JournalProps) {
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="Título da sua anotação"
-                    className="w-full font-serif text-3xl font-bold bg-branco-nevoa dark:bg-verde-mata rounded-lg p-4 border border-marrom-seiva/10 dark:border-creme-velado/10 focus:outline-none focus:ring-2 focus:ring-dourado-suave text-verde-mata dark:text-dourado-suave"
+                    className="w-full font-serif text-3xl font-bold bg-transparent focus:outline-none focus:border-b border-dourado-suave text-verde-mata dark:text-dourado-suave"
                 />
                 {selectedEntry !== 'new' && (
                     <Button onClick={() => openDeleteConfirmation(selectedEntry)} variant="secondary" className="!p-2 ml-4">

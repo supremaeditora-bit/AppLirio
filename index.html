@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR" class="h-full">
 <head>
@@ -11,7 +12,7 @@
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Playfair+Display:wght@700;900&family=Lato:wght@400;700&family=Roboto:wght@400;700&family=Lora:wght@400;700&family=Merriweather:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -25,12 +26,6 @@
         --color-verde-mata: 44 62 42;
         --color-verde-escuro-profundo: 26 41 24;
         --color-dourado-suave: 192 160 99;
-      }
-    </style>
-    <style id="dynamic-font-vars">
-      :root {
-        --font-heading: 'Playfair Display', serif;
-        --font-body: 'Inter', sans-serif;
       }
     </style>
 
@@ -49,8 +44,8 @@
               'dourado-suave': 'rgb(var(--color-dourado-suave) / <alpha-value>)',
             },
             fontFamily: {
-              sans: ['var(--font-body)', 'sans-serif'],
-              serif: ['var(--font-heading)', 'serif'],
+              sans: ['Inter', 'sans-serif'],
+              serif: ['Playfair Display', 'serif'],
             },
           }
         }
@@ -79,28 +74,17 @@
             -ms-overflow-style: none;  /* IE and Edge */
             scrollbar-width: none;  /* Firefox */
         }
-        
-        .text-gradient {
-          background-image: linear-gradient(to right, rgb(var(--color-verde-mata)), rgb(var(--color-dourado-suave)));
-          -webkit-background-clip: text;
-          background-clip: text;
-          color: transparent;
-        }
-        .dark .text-gradient {
-           background-image: linear-gradient(to right, rgb(var(--color-dourado-suave)), rgb(var(--color-creme-velado)));
-        }
     </style>
     
     <script type="importmap">
 {
   "imports": {
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.28.0",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.44.4",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
     "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "react": "https://aistudiocdn.com/react@^19.2.0",
-    "@heroicons/react/": "https://aistudiocdn.com/@heroicons/react@^2.1.5/",
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.44.4",
-    "firebase/": "https://aistudiocdn.com/firebase@^12.5.0/"
+    "@heroicons/react/": "https://aistudiocdn.com/@heroicons/react@^2.1.5/"
   }
 }
 </script>

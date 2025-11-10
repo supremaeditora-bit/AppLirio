@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Event, User } from '../types';
 import Modal from './Modal';
@@ -43,7 +44,7 @@ const TicketModal: React.FC<TicketModalProps> = ({ isOpen, onClose, event, user 
           <div className="col-span-2 space-y-3">
             <div>
               <p className="text-xs uppercase font-semibold text-marrom-seiva/70 dark:text-creme-velado/70">Nome</p>
-              <p className="font-semibold text-verde-mata dark:text-creme-velado">{user.displayName}</p>
+              <p className="font-semibold text-verde-mata dark:text-creme-velado">{user.fullName}</p>
             </div>
             <div>
               <p className="text-xs uppercase font-semibold text-marrom-seiva/70 dark:text-creme-velado/70">Data e Hora</p>

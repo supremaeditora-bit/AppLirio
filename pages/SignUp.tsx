@@ -27,10 +27,13 @@ export default function SignUp({ onNavigate }: SignUpProps) {
         await signupWithEmail(displayName, email, password);
         setIsSuccess(true);
     } catch (err: any) {
+        console.error("Falha no cadastro:", err); // Adicionado para depuração
         if (err.message.includes("User already registered")) {
             setError("Este e-mail já está cadastrado. Tente fazer login.");
         } else if (err.message.includes("Password should be at least 6 characters")) {
             setError("A senha deve ter pelo menos 6 caracteres.");
+        } else if (err.message.includes("Email signups are disabled")) {
+            setError("O cadastro com e-mail está desativado. Por favor, utilize o login com Google.");
         } else {
             setError('Não foi possível criar a conta. Tente novamente.');
         }

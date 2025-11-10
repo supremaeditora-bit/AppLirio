@@ -1,5 +1,4 @@
 
-// FIX: Replaced incorrect React component with a proper Gemini service to resolve JSX parsing errors.
 import { GoogleGenAI, Type } from "@google/genai";
 import { GeneratedDevotional, ReadingPlan } from '../types';
 
