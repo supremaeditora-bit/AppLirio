@@ -1,4 +1,3 @@
-
 export type Page = 'login' | 'signup' | 'landing' | 'home' | 'profile' | 'devotionals' | 'studies' | 'lives' | 'podcasts' | 'prayers' | 'challenges' | 'mentorships' | 'contentDetail' | 'testimonials' | 'testimonialDetail' | 'publishTestimonial' | 'admin' | 'readingPlans' | 'planDetail' | 'events' | 'eventDetail' | 'journal' | 'myGarden';
 
 export type Role = 'aluna' | 'mentora' | 'mod' | 'admin';
@@ -112,14 +111,15 @@ export interface CommunityPost {
 
 export interface Notification {
   id: string;
+  userId?: string;
   title: string;
-  message: string; // substitui "body"
-  type?: 'system' | 'reminder' | 'message' | string;
-  createdAt: string; 
+  message: string;
+  body?: string; // Compatibilidade com código antigo
+  type?: 'system' | 'reminder' | 'message' | 'comment' | 'reaction' | string;
+  createdAt: string;
   read?: boolean;
-  readBy?: string[]; // mantém compatibilidade com versão antiga
+  readBy?: string[];
 }
-
 
 export interface LiveSession {
   id: string;
@@ -270,4 +270,3 @@ export interface Announcement {
   isActive: boolean;
   createdAt: string;
 }
-
