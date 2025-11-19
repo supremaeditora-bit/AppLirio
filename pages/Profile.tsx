@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { User, Notification, Page, CommunityPost, Event, UserNotificationSettings } from '../types';
 import Spinner from '../components/Spinner';
@@ -350,7 +349,7 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
 
   return (
     <>
-    <div className="bg-creme-velado/40 dark:bg-verde-escuro-profundo/40 min-h-full">
+    <div className="min-h-full">
         <div className="container mx-auto p-4 sm:p-8">
             <div className="bg-branco-nevoa dark:bg-verde-mata p-6 rounded-2xl shadow-lg mb-8">
                 <div className="flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-6">

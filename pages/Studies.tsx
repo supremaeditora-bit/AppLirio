@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { getCommunityPosts, createCommunityPost, addReactionToPost, addCommentToPost, deleteCommentFromPost, addReactionToComment, getCommunityPostById } from '../services/api';
+import { getCommunityPosts, createCommunityPost, addReactionToPost, addCommentToPost, deleteCommentFromPost, addReactionToComment, getCommunityPostById, updateCommunityPost, deleteCommunityPost } from '../services/api';
 import { CommunityPost, User, Comment } from '../types';
 import Spinner from '../components/Spinner';
 import Button from '../components/Button';
 import Modal from '../components/Modal';
 import InputField from '../components/InputField';
-import { PrayingHandsIcon, ChatBubbleIcon, PaperAirplaneIcon, TrashIcon, HeartIcon } from '../components/Icons';
+import { PrayingHandsIcon, ChatBubbleIcon, PaperAirplaneIcon, TrashIcon, HeartIcon, PencilIcon } from '../components/Icons';
 import ConfirmationModal from '../components/ConfirmationModal';
 import SearchAndFilter from '../components/SearchAndFilter';
 
@@ -24,10 +24,17 @@ export default function Studies({ user }: StudiesProps) {
     const [posts, setPosts] = useState<CommunityPost[]>([]);
     const [filteredPosts, setFilteredPosts] = useState<CommunityPost[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    
+    // Create/Edit Modal State
     const [isCreateModalOpen, setCreateModalOpen] = useState(false);
+    const [editingPost, setEditingPost] = useState<CommunityPost | null>(null);
     const [newPostTitle, setNewPostTitle] = useState('');
     const [newPostBody, setNewPostBody] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    
+    // Delete Post State
+    const [postToDelete, setPostToDelete] = useState<CommunityPost | null>(null);
+    const [isConfirmDeletePostOpen, setIsConfirmDeletePostOpen] = useState(false);
 
     // States for comment modal
     const [viewingCommentsFor, setViewingCommentsFor] = useState<CommunityPost | null>(null);
@@ -88,26 +95,54 @@ export default function Studies({ user }: StudiesProps) {
         setCreateModalOpen(false);
         setNewPostTitle('');
         setNewPostBody('');
+        setEditingPost(null);
+    };
+    
+    const handleOpenEdit = (post: CommunityPost) => {
+        setEditingPost(post);
+        setNewPostTitle(post.title);
+        setNewPostBody(post.body);
+        setCreateModalOpen(true);
     };
 
-    const handleCreatePost = async () => {
+    const handleSubmitPost = async () => {
         if (!newPostTitle || !newPostBody || !user) return;
         
         setIsSubmitting(true);
         try {
-            await createCommunityPost({
-                room: 'estudos',
-                title: newPostTitle,
-                body: newPostBody,
-                authorId: user.id
-            });
+            if (editingPost) {
+                 await updateCommunityPost(editingPost.id, {
+                    title: newPostTitle,
+                    body: newPostBody
+                });
+            } else {
+                await createCommunityPost({
+                    room: 'estudos',
+                    title: newPostTitle,
+                    body: newPostBody,
+                    authorId: user.id
+                });
+            }
             handleCloseModal();
             fetchPosts(); 
         } catch (error) {
-            console.error("Failed to create study post", error);
+            console.error("Failed to save study post", error);
         } finally {
             setIsSubmitting(false);
         }
+    };
+
+    const handleOpenConfirmDeletePost = (post: CommunityPost) => {
+        setPostToDelete(post);
+        setIsConfirmDeletePostOpen(true);
+    };
+
+    const handleDeletePost = async () => {
+        if (!postToDelete) return;
+        await deleteCommunityPost(postToDelete.id);
+        setIsConfirmDeletePostOpen(false);
+        setPostToDelete(null);
+        fetchPosts();
     };
 
     const handleOpenConfirmDeleteComment = (postId: string, comment: Comment) => {
@@ -200,19 +235,36 @@ export default function Studies({ user }: StudiesProps) {
                 <div className="space-y-6">
                     {filteredPosts.length > 0 ? filteredPosts.map(post => {
                         const hasReacted = user ? post.reactions.some(r => r.userId === user.id) : false;
+                        const canManage = user && (user.id === post.authorId || user.role === 'admin' || user.role === 'mentora');
+                        
                         return (
                             <div key={post.id} className="bg-branco-nevoa dark:bg-verde-mata p-6 rounded-xl shadow-lg">
-                                {post.author && (
+                                <div className="flex items-start justify-between">
                                     <div className="flex items-start">
-                                        <img src={post.author.avatarUrl} alt={post.author.fullName} className="w-12 h-12 rounded-full object-cover mr-4"/>
+                                        {post.author && (
+                                            <img src={post.author.avatarUrl} alt={post.author.fullName} className="w-12 h-12 rounded-full object-cover mr-4"/>
+                                        )}
                                         <div>
                                             <h2 className="font-serif text-xl font-semibold text-verde-mata dark:text-creme-velado">{post.title}</h2>
-                                            <p className="font-sans text-sm text-marrom-seiva/70 dark:text-creme-velado/70">
-                                                Por {post.author.fullName} • {formatTimeAgo(post.createdAt)}
-                                            </p>
+                                            {post.author && (
+                                                <p className="font-sans text-sm text-marrom-seiva/70 dark:text-creme-velado/70">
+                                                    Por {post.author.fullName} • {formatTimeAgo(post.createdAt)}
+                                                </p>
+                                            )}
                                         </div>
                                     </div>
-                                )}
+                                    {canManage && (
+                                        <div className="flex items-center space-x-2">
+                                            <button onClick={() => handleOpenEdit(post)} className="p-2 text-marrom-seiva/70 hover:text-dourado-suave dark:text-creme-velado/70 dark:hover:text-dourado-suave">
+                                                <PencilIcon className="w-5 h-5" />
+                                            </button>
+                                            <button onClick={() => handleOpenConfirmDeletePost(post)} className="p-2 text-marrom-seiva/70 hover:text-red-500 dark:text-creme-velado/70 dark:hover:text-red-500">
+                                                <TrashIcon className="w-5 h-5" />
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                                
                                 <p className="mt-4 font-sans text-marrom-seiva dark:text-creme-velado/90 leading-relaxed">{post.body}</p>
                                 <div className="mt-4 pt-4 border-t border-marrom-seiva/10 dark:border-creme-velado/10 flex items-center space-x-4">
                                     <button 
@@ -240,15 +292,15 @@ export default function Studies({ user }: StudiesProps) {
                     )}
                 </div>
             )}
-             <Modal isOpen={isCreateModalOpen} onClose={handleCloseModal} title="Criar Tópico de Estudo">
+             <Modal isOpen={isCreateModalOpen} onClose={handleCloseModal} title={editingPost ? "Editar Tópico" : "Criar Tópico de Estudo"}>
                 <div className="space-y-4">
                     <InputField id="postTitle" label="Título" value={newPostTitle} onChange={(e) => setNewPostTitle(e.target.value)} />
                     <InputField id="postBody" label="Mensagem" type="textarea" value={newPostBody} onChange={(e) => setNewPostBody(e.target.value)} />
                 </div>
                 <div className="mt-6 flex justify-end space-x-4">
                     <Button variant="secondary" onClick={handleCloseModal} disabled={isSubmitting}>Cancelar</Button>
-                    <Button variant="primary" onClick={handleCreatePost} disabled={isSubmitting}>
-                        {isSubmitting ? <Spinner variant="button" /> : 'Publicar'}
+                    <Button variant="primary" onClick={handleSubmitPost} disabled={isSubmitting}>
+                        {isSubmitting ? <Spinner variant="button" /> : (editingPost ? 'Salvar Alterações' : 'Publicar')}
                     </Button>
                 </div>
              </Modal>
@@ -335,6 +387,17 @@ export default function Studies({ user }: StudiesProps) {
                 onConfirm={handleDeleteComment}
                 title="Excluir Comentário"
                 message="Tem certeza de que deseja excluir este comentário? Esta ação não pode ser desfeita."
+                confirmText="Excluir"
+            />
+        )}
+        
+        {postToDelete && (
+            <ConfirmationModal
+                isOpen={isConfirmDeletePostOpen}
+                onClose={() => setIsConfirmDeletePostOpen(false)}
+                onConfirm={handleDeletePost}
+                title="Excluir Tópico"
+                message={`Tem certeza de que deseja excluir o tópico "${postToDelete.title}"?`}
                 confirmText="Excluir"
             />
         )}

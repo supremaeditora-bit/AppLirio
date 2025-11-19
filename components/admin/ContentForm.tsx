@@ -20,6 +20,9 @@ interface ContentFormProps {
 type AudioSource = 'url' | 'upload' | 'record';
 type ImageSource = 'url' | 'upload';
 
+// 50MB limit in bytes
+const MAX_FILE_SIZE = 50 * 1024 * 1024;
+
 export default function ContentForm({ isOpen, onClose, item, user, defaultType }: ContentFormProps) {
   const [formData, setFormData] = useState<Partial<ContentItem>>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -87,17 +90,30 @@ export default function ContentForm({ isOpen, onClose, item, user, defaultType }
 
   const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.files && e.target.files[0]) {
-          setSelectedImageFile(e.target.files[0]);
+          const file = e.target.files[0];
+          if (file.size > MAX_FILE_SIZE) {
+              alert("O arquivo de imagem é muito grande (limite de 50MB). Por favor, escolha um arquivo menor.");
+              e.target.value = ''; // Clear input
+              return;
+          }
+          setSelectedImageFile(file);
       }
   };
   
   const handleAudioFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.files && e.target.files[0]) {
-          setSelectedAudioFile(e.target.files[0]);
+          const file = e.target.files[0];
+          if (file.size > MAX_FILE_SIZE) {
+              alert("O arquivo de áudio é muito grande (limite de 50MB). Por favor, escolha um arquivo menor.");
+              e.target.value = ''; // Clear input
+              return;
+          }
+
+          setSelectedAudioFile(file);
           setRecordedAudioUrl(null);
           setRecordedBlob(null);
           const audio = document.createElement('audio');
-          audio.src = URL.createObjectURL(e.target.files[0]);
+          audio.src = URL.createObjectURL(file);
           audio.onloadedmetadata = () => {
               setFormData(prev => ({...prev, duration: Math.round(audio.duration)}));
           }

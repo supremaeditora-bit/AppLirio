@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { Page } from '../types';
-import { loginWithEmail, loginWithGoogle, sendPasswordResetEmail } from '../services/authService';
+import { loginWithEmail, sendPasswordResetEmail } from '../services/authService';
 import InputField from '../components/InputField';
 import Button from '../components/Button';
-import { GoogleIcon, SunIcon, MoonIcon } from '../components/Icons';
+import { SunIcon, MoonIcon } from '../components/Icons';
 import Spinner from '../components/Spinner';
 import Modal from '../components/Modal';
 import { useTheme } from '../hooks/useTheme';
@@ -44,7 +44,7 @@ export default function Login({ onNavigate }: LoginProps) {
       // onLogin is no longer needed, App will react to auth state change
     } catch (err: any) {
         if (err.message.includes("Email logins are disabled")) {
-            setError('O login por e-mail está desativado. Por favor, tente fazer login com o Google.');
+            setError('O login por e-mail está desativado.');
         } else if (err.message.includes("Invalid login credentials")) {
             setError('Credenciais inválidas. Verifique seu e-mail e senha.');
         } else {
@@ -53,17 +53,6 @@ export default function Login({ onNavigate }: LoginProps) {
     }
     setIsLoading(false);
   };
-  
-  const handleGoogleLogin = async () => {
-    setIsLoading(true);
-    setError('');
-    try {
-        await loginWithGoogle();
-    } catch (err) {
-        setError('Falha no login com o Google.');
-    }
-    setIsLoading(false);
-  }
 
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,7 +64,7 @@ export default function Login({ onNavigate }: LoginProps) {
         setResetSuccess('Link de redefinição enviado! Verifique sua caixa de entrada e pasta de spam.');
     } catch (err: any) {
         if (err.message.includes("Email logins are disabled")) {
-            setResetError('A recuperação de senha por e-mail está desativada. Por favor, tente fazer login com o Google.');
+            setResetError('A recuperação de senha por e-mail está desativada.');
         } else {
             setResetError('Não foi possível enviar o link. Verifique se o e-mail está correto.');
         }
@@ -127,20 +116,6 @@ export default function Login({ onNavigate }: LoginProps) {
               {isLoading ? <Spinner variant="button" /> : 'Entrar'}
             </Button>
           </form>
-
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-marrom-seiva/20 dark:border-creme-velado/20" />
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-branco-nevoa dark:bg-verde-mata font-sans text-marrom-seiva/70 dark:text-creme-velado/70">OU</span>
-            </div>
-          </div>
-
-          <Button variant="secondary" fullWidth onClick={handleGoogleLogin} disabled={isLoading}>
-            <GoogleIcon />
-            <span className="ml-3">Continuar com Google</span>
-          </Button>
           
           <p className="text-center font-sans text-sm mt-8 text-marrom-seiva dark:text-creme-velado/80">
               Não tem uma conta?{' '}

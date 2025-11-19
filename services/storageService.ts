@@ -8,13 +8,17 @@ import { supabase } from './supabaseClient';
  * @param context A string describing the operation (e.g., "Audio upload").
  */
 function handleStorageError(error: any, context: string) {
-    console.error(`${context} failed:`, error);
+    // FIX: JSON.stringify ensures we see the actual error structure instead of [object Object]
+    console.error(`${context} failed:`, JSON.stringify(error, null, 2));
+    
     let message = `Falha no upload: ${error.message || 'Erro desconhecido.'}`;
     
     if (error.message?.includes("Bucket not found")) {
         message = `Falha no upload (${context}): O bucket de armazenamento não foi encontrado. AÇÃO NECESSÁRIA: Crie o bucket no seu painel Supabase.`;
     } else if (error.message?.includes("permission denied")) {
         message = `Falha no upload (${context}): Permissão negada. Verifique as políticas de segurança (RLS) do bucket no Supabase Storage.`;
+    } else if (error.message?.includes("maximum allowed size") || error.statusCode === '413' || error.error === 'Payload Too Large') {
+        message = `Falha no upload (${context}): O arquivo excede o tamanho máximo permitido (50MB). Por favor, escolha um arquivo menor ou comprima-o.`;
     }
     
     throw new Error(message);
