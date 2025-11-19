@@ -113,10 +113,13 @@ export interface CommunityPost {
 export interface Notification {
   id: string;
   title: string;
-  body: string;
-  createdAt: string;
-  readBy: string[];
+  message: string; // substitui "body"
+  type?: 'system' | 'reminder' | 'message' | string;
+  createdAt: string; 
+  read?: boolean;
+  readBy?: string[]; // mantém compatibilidade com versão antiga
 }
+
 
 export interface LiveSession {
   id: string;
@@ -268,12 +271,3 @@ export interface Announcement {
   createdAt: string;
 }
 
-
-export interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  type?: 'system' | 'reminder' | 'message' | string;
-  read?: boolean;
-  createdAt?: string; // ou Date, se preferir
-}
