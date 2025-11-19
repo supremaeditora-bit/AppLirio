@@ -2,7 +2,7 @@
 import { supabase } from './supabaseClient';
 import { User } from '../types';
 import { AuthChangeEvent, Session } from '@supabase/supabase-js';
-import { awardAchievement, getUserProfile } from './api';
+import { getUserProfile } from './api';
 
 // --- UTILITY ---
 const isObject = (o: any) => o === Object(o) && !Array.isArray(o) && typeof o !== 'function';
@@ -98,31 +98,9 @@ export const updateUserProfileDocument = async (userId: string, data: Partial<Us
 // Listener para mudanças no estado de autenticação
 export const onAuthUserChanged = (callback: (user: User | null) => void) => {
     
-    // Função para verificar e premiar login diário
-    const handleDailyLogin = async (user: User) => {
-        const today = new Date().toISOString().slice(0, 10);
-        const lastLogin = localStorage.getItem(`lastLogin_${user.id}`);
-
-        if (lastLogin !== today) {
-            console.log(`Daily login bonus for ${user.fullName}`);
-            const newPoints = (user.points || 0) + 10;
-            const { error } = await supabase.from('profiles').update({ points: newPoints }).eq('id', user.id);
-            if (!error) {
-                localStorage.setItem(`lastLogin_${user.id}`, today);
-                await awardAchievement(user.id, 'daily_login');
-                // Retorna o usuário com os pontos atualizados
-                return { ...user, points: newPoints };
-            }
-        }
-        return user;
-    };
-    
     const processSession = async (session: Session | null) => {
         if (session?.user) {
             let userProfile = await getUserProfile(session.user.id);
-            if (userProfile) {
-                userProfile = await handleDailyLogin(userProfile);
-            }
             callback(userProfile);
         } else {
             callback(null);

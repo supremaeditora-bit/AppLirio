@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { getDevotionals, getAppearanceSettings, updateAppearanceSettings } from '../services/api';
 import { generateDevotional } from '../services/geminiService';
@@ -52,10 +53,12 @@ export default function Devotionals({ onViewDetail, user, onUserUpdate }: Devoti
               setDailyDevotional(settingsData.dailyDevotional.content);
           } else {
               const newDevotional = await generateDevotional();
-              setDailyDevotional(newDevotional);
-              await updateAppearanceSettings({
-                  dailyDevotional: { date: today, content: newDevotional }
-              });
+              if (newDevotional) {
+                  setDailyDevotional(newDevotional);
+                  await updateAppearanceSettings({
+                      dailyDevotional: { date: today, content: newDevotional }
+                  });
+              }
           }
       }
 
@@ -118,17 +121,25 @@ export default function Devotionals({ onViewDetail, user, onUserUpdate }: Devoti
           <div className="flex justify-center items-center py-20"><Spinner /></div>
         ) : (
           <>
-            {dailyDevotional && !searchQuery && (
+            {dailyDevotional && !searchQuery && !dailyDevotional.title.includes('Erro') && (
               <section 
-                className="relative p-6 sm:p-8 rounded-2xl text-white flex flex-col justify-end min-h-[300px] bg-cover bg-center overflow-hidden mb-12" 
-                style={{backgroundImage: `linear-gradient(rgba(0,0,0,0.1), rgba(44,62,42,0.8)), url('https://images.unsplash.com/photo-1518495973542-4543?auto=format&fit=crop&w=1074&q=80')`}}
+                className="relative p-6 sm:p-8 rounded-2xl flex flex-col justify-end min-h-[300px] bg-cover bg-center overflow-hidden mb-12 shadow-xl" 
+                style={{backgroundImage: `url('https://images.unsplash.com/photo-1518495973542-4543?auto=format&fit=crop&w=1074&q=80')`}}
               >
-                  <span className="font-sans font-semibold tracking-wider uppercase text-dourado-suave">Devocional do Dia</span>
-                  <h2 className="font-serif text-3xl font-bold mt-1">{dailyDevotional.title}</h2>
-                  <p className="font-sans mt-2 text-sm">{dailyDevotional.verseReference}</p>
-                  <Button onClick={() => onViewDetail('daily-devotional')} className="mt-4 self-start !bg-white/90 !text-verde-mata hover:!bg-white">
-                      <BookOpenIcon className="w-5 h-5 mr-2" /> Ler Devocional
-                  </Button>
+                  {/* Gradiente adaptativo: Bege Dourado no Claro (#D9C7A6) e Verde Mata no Escuro */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#D9C7A6] via-[#D9C7A6]/80 to-transparent dark:!from-verde-mata dark:!via-verde-mata/80 transition-colors duration-500"></div>
+
+                  <div className="relative z-10">
+                    <span className="font-sans font-semibold tracking-wider uppercase text-xs sm:text-sm text-marrom-seiva/80 dark:text-dourado-suave">Devocional do Dia</span>
+                    <h2 className="font-serif text-3xl font-bold mt-1 text-verde-mata dark:text-white">{dailyDevotional.title}</h2>
+                    <p className="font-sans mt-2 text-sm text-marrom-seiva dark:text-white/90">{dailyDevotional.verseReference}</p>
+                    <Button 
+                        onClick={() => onViewDetail('daily-devotional')} 
+                        className="mt-4 self-start !bg-verde-mata !text-dourado-suave hover:!bg-verde-mata/90 dark:!bg-white/90 dark:!text-verde-mata dark:hover:!bg-white"
+                    >
+                        <BookOpenIcon className="w-5 h-5 mr-2" /> Ler Devocional
+                    </Button>
+                  </div>
               </section>
             )}
             

@@ -2,8 +2,9 @@
 import React from 'react';
 import { Page, User } from '../types';
 import { logout } from '../services/authService';
-import { HomeIcon, BookOpenIcon, UsersIcon, MicrophoneIcon, HeartIcon, ChartPieIcon, ShieldCheckIcon, VideoCameraIcon, StarIcon, ChevronLeftIcon, AcademicCapIcon, CalendarDaysIcon, JournalIcon } from './Icons';
+import { HomeIcon, BookOpenIcon, UsersIcon, MicrophoneIcon, HeartIcon, ChartPieIcon, ShieldCheckIcon, VideoCameraIcon, StarIcon, ChevronLeftIcon, AcademicCapIcon, CalendarDaysIcon, JournalIcon, SparklesIcon } from './Icons';
 import { PrayingHandsIcon } from './Icons';
+import { useTheme } from '../hooks/useTheme';
 
 interface SidebarProps {
     isMobileOpen: boolean;
@@ -14,10 +15,13 @@ interface SidebarProps {
     user: User | null;
     currentPage: Page;
     isLiveActive: boolean;
-    logoUrl?: string;
+    logoLightUrl?: string;
+    logoDarkUrl?: string;
+    siteTitle?: string;
+    logoDisplayMode?: 'image-only' | 'image-and-text';
 }
 
-const NavLink: React.FC<{ icon: React.ReactElement<{ className?: string }>, label: string, page: Page, currentPage: Page, onNavigate: (page: Page) => void, isCollapsed: boolean, indicator?: React.ReactNode }> = ({ icon, label, page, currentPage, onNavigate, isCollapsed, indicator }) => {
+const NavLink: React.FC<{ icon: React.ElementType, label: string, page: Page, currentPage: Page, onNavigate: (page: Page) => void, isCollapsed: boolean, indicator?: React.ReactNode }> = ({ icon: IconComponent, label, page, currentPage, onNavigate, isCollapsed, indicator }) => {
     const isActive = currentPage === page;
     return (
         <button
@@ -29,7 +33,7 @@ const NavLink: React.FC<{ icon: React.ReactElement<{ className?: string }>, labe
             } ${isCollapsed ? 'md:justify-center md:px-2' : ''}`}
             aria-label={label}
         >
-            {React.cloneElement(icon, { className: `w-6 h-6 shrink-0 transition-all ${isCollapsed ? 'md:mr-0' : 'mr-4'}` })}
+            <IconComponent className={`w-6 h-6 shrink-0 transition-all ${isCollapsed ? 'md:mr-0' : 'mr-4'}`} />
             <span className={`font-semibold whitespace-nowrap transition-opacity flex-1 ${isCollapsed ? 'md:opacity-0 md:hidden' : 'opacity-100'}`}>{label}</span>
             {!isCollapsed && indicator && (
                 <div className="ml-auto">
@@ -40,7 +44,9 @@ const NavLink: React.FC<{ icon: React.ReactElement<{ className?: string }>, labe
     )
 }
 
-export default function Sidebar({ isMobileOpen, onMobileClose, isCollapsed, onToggleCollapse, onNavigate, user, currentPage, isLiveActive, logoUrl }: SidebarProps) {
+export default function Sidebar({ isMobileOpen, onMobileClose, isCollapsed, onToggleCollapse, onNavigate, user, currentPage, isLiveActive, logoLightUrl, logoDarkUrl, siteTitle, logoDisplayMode }: SidebarProps) {
+    const { theme } = useTheme();
+    const logoToDisplay = theme === 'dark' ? logoDarkUrl || logoLightUrl : logoLightUrl;
 
     const liveIndicator = (
         <span className="relative flex h-2.5 w-2.5">
@@ -55,12 +61,13 @@ export default function Sidebar({ isMobileOpen, onMobileClose, isCollapsed, onTo
             <aside className={`fixed inset-y-0 left-0 flex flex-col bg-branco-nevoa dark:bg-verde-mata p-4 z-40 transform transition-all duration-300 ease-in-out ${isMobileOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 ${isCollapsed ? 'md:w-20' : 'md:w-64'}`}>
                 {/* Header with Title and Collapse Button */}
                 <div className="flex items-center justify-between pb-4 mb-4 border-b border-marrom-seiva/10 dark:border-creme-velado/10">
-                    <div className={`flex items-center h-10 overflow-hidden transition-all duration-300 ${isCollapsed ? 'w-0' : 'flex-1'}`}>
-                       {logoUrl ? (
-                            <img src={logoUrl} alt="Lírios do Vale Logo" className="h-full object-contain" />
-                        ) : (
-                            <h1 className="font-serif text-3xl font-bold text-verde-mata dark:text-dourado-suave whitespace-nowrap">
-                                Lírios do Vale
+                    <div className={`flex items-center h-10 overflow-hidden transition-all duration-300 gap-3 ${isCollapsed ? 'w-0' : 'flex-1'}`}>
+                       {logoToDisplay && (
+                            <img src={logoToDisplay} alt={siteTitle || "Logo do site"} className="h-full object-contain flex-shrink-0" />
+                        )}
+                        {(!logoToDisplay || logoDisplayMode === 'image-and-text') && siteTitle && (
+                            <h1 className="font-serif text-2xl font-bold text-verde-mata dark:text-dourado-suave whitespace-nowrap">
+                                {siteTitle}
                             </h1>
                         )}
                     </div>
@@ -75,22 +82,23 @@ export default function Sidebar({ isMobileOpen, onMobileClose, isCollapsed, onTo
 
                 <nav className="flex-1 space-y-2 overflow-y-auto scrollbar-hide">
                     <h2 className={`px-4 pt-4 pb-2 text-xs font-bold uppercase text-marrom-seiva/60 dark:text-creme-velado/60 whitespace-nowrap ${isCollapsed ? 'md:hidden' : ''}`}>Menu</h2>
-                    <NavLink icon={<HomeIcon />} label="Início" page="home" currentPage={currentPage} onNavigate={onNavigate} isCollapsed={isCollapsed} />
-                    <NavLink icon={<BookOpenIcon />} label="Devocionais" page="devotionals" currentPage={currentPage} onNavigate={onNavigate} isCollapsed={isCollapsed} />
-                    <NavLink icon={<JournalIcon />} label="Diário" page="journal" currentPage={currentPage} onNavigate={onNavigate} isCollapsed={isCollapsed} />
-                    <NavLink icon={<PrayingHandsIcon />} label="Orações" page="prayers" currentPage={currentPage} onNavigate={onNavigate} isCollapsed={isCollapsed} />
-                    <NavLink icon={<UsersIcon />} label="Estudos" page="studies" currentPage={currentPage} onNavigate={onNavigate} isCollapsed={isCollapsed} />
-                    <NavLink icon={<AcademicCapIcon />} label="Mentoria" page="mentorships" currentPage={currentPage} onNavigate={onNavigate} isCollapsed={isCollapsed} />
+                    <NavLink icon={HomeIcon} label="Início" page="home" currentPage={currentPage} onNavigate={onNavigate} isCollapsed={isCollapsed} />
+                    <NavLink icon={BookOpenIcon} label="Devocionais" page="devotionals" currentPage={currentPage} onNavigate={onNavigate} isCollapsed={isCollapsed} />
+                    <NavLink icon={JournalIcon} label="Diário" page="journal" currentPage={currentPage} onNavigate={onNavigate} isCollapsed={isCollapsed} />
+                    <NavLink icon={PrayingHandsIcon} label="Orações" page="prayers" currentPage={currentPage} onNavigate={onNavigate} isCollapsed={isCollapsed} />
+                    <NavLink icon={UsersIcon} label="Estudos" page="studies" currentPage={currentPage} onNavigate={onNavigate} isCollapsed={isCollapsed} />
+                    <NavLink icon={AcademicCapIcon} label="Mentoria" page="mentorships" currentPage={currentPage} onNavigate={onNavigate} isCollapsed={isCollapsed} />
                     
                     <h2 className={`px-4 pt-4 pb-2 text-xs font-bold uppercase text-marrom-seiva/60 dark:text-creme-velado/60 whitespace-nowrap ${isCollapsed ? 'md:hidden' : ''}`}>Recursos</h2>
-                    <NavLink icon={<HeartIcon />} label="Testemunhos" page="testimonials" currentPage={currentPage} onNavigate={onNavigate} isCollapsed={isCollapsed} />
-                    <NavLink icon={<AcademicCapIcon />} label="Planos de Leitura" page="readingPlans" currentPage={currentPage} onNavigate={onNavigate} isCollapsed={isCollapsed} />
-                    <NavLink icon={<CalendarDaysIcon />} label="Eventos" page="events" currentPage={currentPage} onNavigate={onNavigate} isCollapsed={isCollapsed} />
-                    <NavLink icon={<MicrophoneIcon />} label="Podcasts" page="podcasts" currentPage={currentPage} onNavigate={onNavigate} isCollapsed={isCollapsed} />
-                    <NavLink icon={<VideoCameraIcon />} label="Lives" page="lives" currentPage={currentPage} onNavigate={onNavigate} isCollapsed={isCollapsed} indicator={isLiveActive ? liveIndicator : null} />
+                    <NavLink icon={HeartIcon} label="Testemunhos" page="testimonials" currentPage={currentPage} onNavigate={onNavigate} isCollapsed={isCollapsed} />
+                    <NavLink icon={AcademicCapIcon} label="Planos de Leitura" page="readingPlans" currentPage={currentPage} onNavigate={onNavigate} isCollapsed={isCollapsed} />
+                    <NavLink icon={CalendarDaysIcon} label="Eventos" page="events" currentPage={currentPage} onNavigate={onNavigate} isCollapsed={isCollapsed} />
+                    <NavLink icon={MicrophoneIcon} label="Podcasts" page="podcasts" currentPage={currentPage} onNavigate={onNavigate} isCollapsed={isCollapsed} />
+                    <NavLink icon={VideoCameraIcon} label="Lives" page="lives" currentPage={currentPage} onNavigate={onNavigate} isCollapsed={isCollapsed} indicator={isLiveActive ? liveIndicator : null} />
+                    <NavLink icon={SparklesIcon} label="Meu Jardim" page="myGarden" currentPage={currentPage} onNavigate={onNavigate} isCollapsed={isCollapsed} />
                     
                     {user?.role === 'admin' && (
-                         <NavLink icon={<ShieldCheckIcon />} label="Admin" page="admin" currentPage={currentPage} onNavigate={onNavigate} isCollapsed={isCollapsed} />
+                         <NavLink icon={ShieldCheckIcon} label="Admin" page="admin" currentPage={currentPage} onNavigate={onNavigate} isCollapsed={isCollapsed} />
                     )}
                 </nav>
 

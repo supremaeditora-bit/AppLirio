@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { getCommunityPosts, addReactionToPost } from '../services/api';
 import { CommunityPost, User, Page } from '../types';
@@ -30,10 +31,12 @@ const TestimonialCard: React.FC<{ post: CommunityPost; onCardClick: () => void; 
 
     return (
         <div onClick={onCardClick} className="bg-branco-nevoa dark:bg-verde-mata p-6 rounded-2xl shadow-lg cursor-pointer transition-transform hover:scale-[1.02]">
-            <div className="flex items-center mb-4">
-                <img src={post.author.avatarUrl} alt={post.author.name} className="w-10 h-10 rounded-full object-cover mr-3" />
-                <span className="font-sans font-semibold text-verde-mata dark:text-creme-velado">{post.author.name}</span>
-            </div>
+            {post.author && (
+                <div className="flex items-center mb-4">
+                    <img src={post.author.avatarUrl} alt={post.author.fullName} className="w-10 h-10 rounded-full object-cover mr-3" />
+                    <span className="font-sans font-semibold text-verde-mata dark:text-creme-velado">{post.author.fullName}</span>
+                </div>
+            )}
             
             {post.imageUrl && (
                  <div className="aspect-video rounded-lg overflow-hidden mb-4">
@@ -94,7 +97,7 @@ export default function Testimonials({ onViewTestimonial, onNavigate, user }: Te
         results = results.filter(post => 
             post.title.toLowerCase().includes(lowercasedQuery) ||
             post.body.toLowerCase().includes(lowercasedQuery) ||
-            post.author.name.toLowerCase().includes(lowercasedQuery)
+            (post.author && post.author.fullName.toLowerCase().includes(lowercasedQuery))
         );
     }
 
@@ -111,7 +114,7 @@ export default function Testimonials({ onViewTestimonial, onNavigate, user }: Te
   }, [searchQuery, activeFilter, posts]);
 
   return (
-    <div className="bg-creme-velado/40 dark:bg-verde-escuro-profundo/40 min-h-full">
+    <div className="min-h-full">
         <header className="sticky top-0 z-10 flex items-center justify-between p-4 bg-creme-velado/80 dark:bg-verde-mata/80 backdrop-blur-md border-b border-marrom-seiva/10 dark:border-creme-velado/10">
             <div className="flex items-center space-x-2">
                 <BookOpenIcon className="w-7 h-7 text-verde-mata dark:text-dourado-suave" />

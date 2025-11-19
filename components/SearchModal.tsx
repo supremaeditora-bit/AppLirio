@@ -123,7 +123,7 @@ export default function SearchModal({ isOpen, onClose, onViewDetail, user }: Sea
                   placeholder="Pesquisar por devocionais, estudos..."
                   value={query}
                   onChange={e => setQuery(e.target.value)}
-                  className="w-full pl-12 pr-4 py-2 bg-transparent border-none font-sans text-lg focus:outline-none focus:ring-0 text-marrom-seiva dark:text-creme-velado"
+                  className="w-full pl-12 pr-4 py-2 bg-transparent border-none font-sans text-lg focus:outline-none focus:ring-0 text-marrom-seiva dark:text-creme-velado placeholder:text-[#7A6C59] dark:placeholder:text-creme-velado/60"
               />
             </form>
             <button

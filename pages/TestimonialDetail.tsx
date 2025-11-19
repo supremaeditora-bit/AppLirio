@@ -145,13 +145,15 @@ export default function TestimonialDetail({ id, user, onNavigate }: TestimonialD
 
         <main className="max-w-3xl mx-auto p-4 sm:p-8">
             <div className="bg-branco-nevoa dark:bg-verde-mata p-6 sm:p-8 rounded-2xl shadow-lg">
-                <div className="flex items-center mb-4">
-                    <img src={post.author.avatarUrl} alt={post.author.name} className="w-12 h-12 rounded-full object-cover mr-4" />
-                    <div>
-                        <p className="font-sans font-semibold text-verde-mata dark:text-creme-velado">{post.author.name}</p>
-                        <p className="font-sans text-sm text-marrom-seiva/70 dark:text-creme-velado/70">{formatTimeAgo(post.createdAt)}</p>
+                {post.author && (
+                    <div className="flex items-center mb-4">
+                        <img src={post.author.avatarUrl} alt={post.author.fullName} className="w-12 h-12 rounded-full object-cover mr-4" />
+                        <div>
+                            <p className="font-sans font-semibold text-verde-mata dark:text-creme-velado">{post.author.fullName}</p>
+                            <p className="font-sans text-sm text-marrom-seiva/70 dark:text-creme-velado/70">{formatTimeAgo(post.createdAt)}</p>
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {post.imageUrl && (
                     <div className="aspect-video rounded-lg overflow-hidden my-6">
@@ -194,7 +196,7 @@ export default function TestimonialDetail({ id, user, onNavigate }: TestimonialD
                                 placeholder="Deixe uma palavra de encorajamento..."
                                 value={commentText}
                                 onChange={(e) => setCommentText(e.target.value)}
-                                className="w-full font-sans bg-branco-nevoa dark:bg-verde-mata border-2 border-marrom-seiva/20 dark:border-creme-velado/20 rounded-xl p-3 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-dourado-suave"
+                                className="w-full font-sans bg-branco-nevoa dark:bg-verde-mata border-2 border-marrom-seiva/20 dark:border-creme-velado/20 rounded-xl p-3 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-dourado-suave placeholder:text-[#7A6C59] dark:placeholder:text-creme-velado/60"
                                 rows={3}
                             />
                              <button type="submit" className="absolute right-3 bottom-3 p-2 rounded-full text-dourado-suave hover:bg-dourado-suave/10 disabled:opacity-50" disabled={!commentText.trim()}>
@@ -209,12 +211,12 @@ export default function TestimonialDetail({ id, user, onNavigate }: TestimonialD
                         const hasReacted = user ? comment.reactions?.some(r => r.userId === user.id) : false;
                         return (
                         <div key={comment.id} className="group flex items-start space-x-3">
-                            <img src={comment.author.avatarUrl} alt={comment.author.name} className="w-10 h-10 rounded-full object-cover" />
+                            <img src={comment.author.avatarUrl} alt={comment.author.fullName} className="w-10 h-10 rounded-full object-cover" />
                             <div className="flex-1 bg-branco-nevoa dark:bg-verde-mata p-4 rounded-xl">
                                 <div className="flex justify-between items-start">
                                     <div>
                                         <p className="font-sans text-sm">
-                                            <span className="font-bold text-verde-mata dark:text-creme-velado">{comment.author.name}</span>
+                                            <span className="font-bold text-verde-mata dark:text-creme-velado">{comment.author.fullName}</span>
                                             <span className="text-marrom-seiva/60 dark:text-creme-velado/60 ml-2">{formatTimeAgo(comment.createdAt)}</span>
                                         </p>
                                         <p className="font-sans text-sm text-marrom-seiva dark:text-creme-velado/90 mt-1">{comment.body}</p>

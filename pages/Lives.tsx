@@ -262,7 +262,7 @@ export default function Lives({ user }: LivesProps) {
 
         {selectedSession && (
           <section>
-            <VideoPlayer youtubeId={selectedSession.youtubeId} />
+            <VideoPlayer url={selectedSession.youtubeId} />
             <div className="mt-4 bg-branco-nevoa dark:bg-verde-mata p-6 rounded-2xl shadow-lg">
               <span className={`inline-block px-3 py-1 text-xs font-semibold rounded-full mb-2 ${
                   selectedSession.status === 'past' ? 'bg-marrom-seiva/20 text-marrom-seiva dark:bg-creme-velado/20 dark:text-creme-velado' : 'bg-red-500/20 text-red-600 dark:bg-red-400/20 dark:text-red-400'
@@ -298,7 +298,7 @@ export default function Lives({ user }: LivesProps) {
                                 placeholder="Deixe uma mensagem..."
                                 value={commentText}
                                 onChange={(e) => setCommentText(e.target.value)}
-                                className="w-full font-sans bg-branco-nevoa dark:bg-verde-mata border-2 border-marrom-seiva/20 dark:border-creme-velado/20 rounded-xl p-3 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-dourado-suave"
+                                className="w-full font-sans bg-branco-nevoa dark:bg-verde-mata border-2 border-marrom-seiva/20 dark:border-creme-velado/20 rounded-xl p-3 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-dourado-suave placeholder:text-[#7A6C59] dark:placeholder:text-creme-velado/60"
                                 rows={2}
                             />
                             <button type="submit" className="absolute right-3 bottom-3 p-2 rounded-full text-dourado-suave hover:bg-dourado-suave/10 disabled:opacity-50" disabled={!commentText.trim()}>
@@ -312,12 +312,12 @@ export default function Lives({ user }: LivesProps) {
                         const hasCommentReacted = user ? comment.reactions?.some(r => r.userId === user.id) : false;
                         return (
                             <div key={comment.id} className="group flex items-start space-x-3">
-                                <img src={comment.author.avatarUrl} alt={comment.author.name} className="w-10 h-10 rounded-full object-cover" />
+                                <img src={comment.author.avatarUrl} alt={comment.author.fullName} className="w-10 h-10 rounded-full object-cover" />
                                 <div className="flex-1 bg-branco-nevoa dark:bg-verde-mata p-4 rounded-xl">
                                     <div className="flex justify-between items-start">
                                         <div>
                                             <p className="font-sans text-sm">
-                                                <span className="font-bold text-verde-mata dark:text-creme-velado">{comment.author.name}</span>
+                                                <span className="font-bold text-verde-mata dark:text-creme-velado">{comment.author.fullName}</span>
                                                 <span className="text-marrom-seiva/60 dark:text-creme-velado/60 ml-2">{formatTimeAgo(comment.createdAt)}</span>
                                             </p>
                                             <p className="font-sans text-sm text-marrom-seiva dark:text-creme-velado/90 mt-1">{comment.body}</p>

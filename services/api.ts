@@ -6,6 +6,37 @@ import {
 } from '../types';
 import { supabase } from './supabaseClient';
 
+// --- Default Settings ---
+const defaultAppearanceSettings: AppearanceSettings = {
+    isAiDevotionalEnabled: false,
+    aiDevotionalScheduleTime: '06:00',
+    logoSettings: {
+      siteTitle: 'ELV | Assistente Espiritual',
+      logoLightUrl: '',
+      logoDarkUrl: '',
+      logoDisplayMode: 'image-and-text',
+    },
+    faviconUrl: '/favicon.ico',
+    themeColors: {
+      lightBg: '#FBF8F1',
+      lightComponentBg: '#FAF9F6',
+      lightText: '#5C3D2E',
+      darkComponentBg: '#2C3E2A',
+      darkBg: '#1A2918',
+      lightAccent: '#C0A063',
+      darkAccent: '#D9C7A6',
+      lightButtonBg: '#C0A063', // Dourado Suave
+      lightButtonText: '#2C3E2A', // Verde Mata
+      darkButtonBg: '#D9C7A6', // Dourado mais claro para dark mode
+      darkButtonText: '#2C3E2A', // Verde Mata
+    },
+    useBackgroundImage: false,
+    backgroundImageUrlLight: '',
+    backgroundImageUrlDark: '',
+    componentBackgroundImageUrlLight: '',
+    componentBackgroundImageUrlDark: '',
+};
+
 // --- UTILS: snake_case <-> camelCase ---
 
 const toCamel = (s: string) => s.replace(/([-_][a-z])/ig, ($1) => $1.toUpperCase().replace('-', '').replace('_', ''));
@@ -39,314 +70,613 @@ const convertKeysToSnakeCase = (o: any): any => {
     return o;
 };
 
+// --- ERROR HELPER ---
+function handleSupabaseError(error: any, context: string) {
+    if (error) {
+        // FIX: JSON.stringify ensures we see the actual error structure instead of [object Object]
+        console.error(`Supabase error in ${context}:`, JSON.stringify(error, null, 2));
+        
+        let message = `Erro em '${context}': ${error.message || 'Erro desconhecido'}`;
+        
+        if (error.message?.includes("violates row-level security policy")) {
+            message = `Permissão negada em '${context}'. AÇÃO NECESSÁRIA: Verifique as políticas de RLS (Row Level Security) para esta tabela no painel do Supabase.`;
+        }
+        if (error.code === '42P01' || (error.message?.includes("relation") && error.message?.includes("does not exist"))) {
+            message = `Tabela não encontrada em '${context}'. AÇÃO NECESSÁRIA: A tabela parece estar faltando. Você executou o script SQL inicial para configurar o banco de dados?`;
+        }
+        if (error.message?.includes("JWT") || error.code?.includes("PGRST301")) {
+             message = `Erro de autenticação em '${context}'. AÇÃO NECESSÁRI: Verifique se a URL e a Chave anônima (anon key) do Supabase estão corretas em 'services/supabaseClient.ts'.`;
+        }
+
+        throw new Error(message);
+    }
+}
+
+
 // Helper para atualizar arrays em colunas JSONB
 const updateJsonbArray = async (
   table: string,
   rowId: string,
   column: string,
-  userId: string,
-  itemFactory: (user: User) => any,
-  check: (item: any, userId: string) => boolean,
+  itemIdentifier: any, // The item to add/remove or an ID to identify it
+  itemFactory: (user?: User) => any, // Factory to create the item, user is optional
+  check: (item: any, identifier: any) => boolean,
+  lookupUserId?: string // The actual user ID to look up for the factory
 ) => {
     const { data, error } = await supabase.from(table).select(column).eq('id', rowId).single();
-    if (error || !data) throw error || new Error("Not found");
+    if (error && error.code !== 'PGRST116') handleSupabaseError(error, `updateJsonbArray:select from ${table}`);
+    if (!data) throw new Error(`Registro com id ${rowId} não encontrado na tabela ${table}.`);
     
     let currentArray = convertKeysToCamelCase<any[]>(data[column] || []);
     
-    const itemIndex = currentArray.findIndex(item => check(item, userId));
+    const itemIndex = currentArray.findIndex(item => check(item, itemIdentifier));
     
     if (itemIndex > -1) {
         currentArray.splice(itemIndex, 1); // Remove
-    } else {
-        const userProfile = await getUserProfile(userId);
-        if (userProfile) currentArray.push(itemFactory(userProfile)); // Adiciona
+    } else { // Add
+        if (lookupUserId) { // If a user ID is provided for lookup
+            const userProfile = await getUserProfile(lookupUserId);
+            if (userProfile) {
+                currentArray.push(itemFactory(userProfile));
+            } else {
+                 console.warn(`User profile not found for ID: ${lookupUserId}. Cannot add item.`);
+            }
+        } else { // If no user ID lookup is needed
+            currentArray.push(itemFactory());
+        }
     }
 
     const { error: updateError } = await supabase.from(table).update({ [column]: convertKeysToSnakeCase(currentArray) }).eq('id', rowId);
-    if (updateError) throw updateError;
+    handleSupabaseError(updateError, `updateJsonbArray:update on ${table}`);
 };
 
 // --- User API ---
 export const getUserProfile = async (userId: string): Promise<User | null> => {
-    const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
-    if (error) return null;
-    return convertKeysToCamelCase<User>(data);
+    try {
+        const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
+        if (error && error.code !== 'PGRST116') throw error;
+        return data ? convertKeysToCamelCase<User>(data) : null;
+    } catch (error: any) {
+        console.warn(`Could not fetch user profile: ${error.message}`);
+        return null;
+    }
 };
 
 export const getAllUsers = async (): Promise<User[]> => {
-    const { data, error } = await supabase.from('profiles').select('*');
-    if (error) return [];
-    return convertKeysToCamelCase<User[]>(data);
+    try {
+        const { data, error } = await supabase.from('profiles').select('*');
+        if (error) throw error;
+        return data ? convertKeysToCamelCase<User[]>(data) : [];
+    } catch (error: any) {
+        console.warn(`Could not fetch all users: ${error.message}`);
+        return [];
+    }
 };
 
 export const updateUserRole = async (userId: string, role: Role): Promise<void> => {
     const { error } = await supabase.from('profiles').update({ role }).eq('id', userId);
-    if (error) throw error;
+    handleSupabaseError(error, 'updateUserRole');
 };
 
 // --- Content API ---
 const fetchContent = async (type?: ContentType): Promise<ContentItem[]> => {
-    let query = supabase.from('content').select('*');
-    if (type) {
-        query = query.eq('type', type);
+    try {
+        let query = supabase.from('content').select('*');
+        if (type) {
+            query = query.eq('type', type);
+        }
+        const { data, error } = await query.order('created_at', { ascending: false });
+        if (error) throw error;
+        return data ? convertKeysToCamelCase<ContentItem[]>(data) : [];
+    } catch (error: any) {
+        console.warn(`Could not fetch content (type: ${type || 'all'}): ${error.message}`);
+        return [];
     }
-    const { data, error } = await query.order('created_at', { ascending: false });
-    if (error) return [];
-    return convertKeysToCamelCase<ContentItem[]>(data);
 }
 export const getAllContent = async (): Promise<ContentItem[]> => fetchContent();
 export const getContentItem = async (id: string): Promise<ContentItem | undefined> => {
-    const { data, error } = await supabase.from('content').select('*').eq('id', id).single();
-    return data ? convertKeysToCamelCase<ContentItem>(data) : undefined;
+    try {
+        const { data, error } = await supabase.from('content').select('*').eq('id', id).single();
+        if (error && error.code !== 'PGRST116') throw error;
+        return data ? convertKeysToCamelCase<ContentItem>(data) : undefined;
+    } catch (error: any) {
+        console.warn(`Could not fetch content item (id: ${id}): ${error.message}`);
+        return undefined;
+    }
 };
 export const getDevotionals = async (): Promise<ContentItem[]> => fetchContent('Devocional');
 export const getMentorships = async (): Promise<ContentItem[]> => fetchContent('Mentoria');
 export const getPodcastEpisodes = async (): Promise<ContentItem[]> => fetchContent('Podcast');
 
-export const createContentItem = async (item: Omit<ContentItem, 'id' | 'createdAt' | 'comments' | 'reactions'>): Promise<ContentItem> => {
-    const { data, error } = await supabase.from('content').insert(convertKeysToSnakeCase(item)).select().single();
-    if (error) throw error;
-    return convertKeysToCamelCase<ContentItem>(data);
-}
-export const updateContentItem = async (item: ContentItem): Promise<ContentItem> => {
-    const { data, error } = await supabase.from('content').update(convertKeysToSnakeCase(item)).eq('id', item.id).select().single();
-    if (error) throw error;
-    return convertKeysToCamelCase<ContentItem>(data);
-}
+export const createContentItem = async (item: Omit<ContentItem, 'id' | 'createdAt' | 'comments' | 'reactions'>): Promise<void> => {
+    const { error } = await supabase.from('content').insert(convertKeysToSnakeCase(item));
+    handleSupabaseError(error, 'createContentItem');
+};
+
+export const updateContentItem = async (item: ContentItem): Promise<void> => {
+    const { id, ...itemData } = item;
+    const { error } = await supabase.from('content').update(convertKeysToSnakeCase(itemData)).eq('id', id);
+    handleSupabaseError(error, `updateContentItem (id: ${id})`);
+};
+
 export const deleteContentItem = async (id: string): Promise<void> => {
     const { error } = await supabase.from('content').delete().eq('id', id);
-    if (error) throw error;
-}
-export const addReactionToContent = (contentId: string, userId: string) => updateJsonbArray('content', contentId, 'reactions', userId, () => ({ userId }), (item, uId) => item.userId === uId);
-export const addCommentToContent = (contentId: string, body: string, user: User) => updateJsonbArray('content', contentId, 'comments', user.id, u => ({ id: crypto.randomUUID(), body, author: { id: u.id, name: u.fullName, avatarUrl: u.avatarUrl }, createdAt: new Date().toISOString(), reactions: [] }), () => false);
-export const addReactionToContentComment = (contentId: string, commentId: string, userId: string) => { /* Complex logic, simplified */ };
-export const deleteCommentFromContent = (contentId: string, commentId: string) => { /* Complex logic, simplified */ };
+    handleSupabaseError(error, `deleteContentItem (id: ${id})`);
+};
 
-
-// --- Community API ---
+// --- Community Posts API ---
 export const getCommunityPosts = async (room: 'testemunhos' | 'oracao' | 'estudos'): Promise<CommunityPost[]> => {
-    const { data, error } = await supabase.from('community_posts').select('*').eq('room', room).order('created_at', { ascending: false });
-    if (error) return [];
-    return convertKeysToCamelCase<CommunityPost[]>(data);
+    try {
+        const { data, error } = await supabase
+            .from('community_posts')
+            .select('*, author:profiles(*)')
+            .eq('room', room)
+            .order('created_at', { ascending: false });
+        if (error) throw error;
+        return data ? convertKeysToCamelCase<CommunityPost[]>(data) : [];
+    } catch (error: any) {
+        console.warn(`Could not fetch community posts (room: ${room}): ${error.message}`);
+        return [];
+    }
 };
+
+export const getCommunityPostById = async (id: string): Promise<CommunityPost | null> => {
+    try {
+        const { data, error } = await supabase
+            .from('community_posts')
+            .select('*, author:profiles(*)')
+            .eq('id', id)
+            .single();
+        if (error && error.code !== 'PGRST116') throw error;
+        return data ? convertKeysToCamelCase<CommunityPost>(data) : null;
+    } catch (error: any) {
+        console.warn(`Could not fetch community post by ID (id: ${id}): ${error.message}`);
+        return null;
+    }
+};
+
 export const getAllCommunityPostsForAdmin = async (): Promise<CommunityPost[]> => {
-     const { data, error } = await supabase.from('community_posts').select('*').order('created_at', { ascending: false });
-     if (error) return [];
-     return convertKeysToCamelCase<CommunityPost[]>(data);
-}
-export const getCommunityPostById = async (id: string): Promise<CommunityPost | undefined> => {
-    const { data, error } = await supabase.from('community_posts').select('*').eq('id', id).single();
-    return data ? convertKeysToCamelCase<CommunityPost>(data) : undefined;
-}
-export const createCommunityPost = async (postData: { room: string; title: string; body: string; authorId: string; imageUrl?: string; isAnonymous?: boolean }): Promise<void> => {
-    const author = await getUserProfile(postData.authorId);
-    if (!author) throw new Error("Author not found");
-    
-    const newPost = {
-        room: postData.room,
-        title: postData.title,
-        body: postData.body,
-        author: { id: author.id, name: author.fullName, avatarUrl: author.avatarUrl },
-        imageUrl: postData.imageUrl,
-        isAnonymous: postData.isAnonymous
+    try {
+        const { data, error } = await supabase
+            .from('community_posts')
+            .select('*, author:profiles(*)')
+            .order('created_at', { ascending: false });
+        if (error) throw error;
+        return data ? convertKeysToCamelCase<CommunityPost[]>(data) : [];
+    } catch (error: any) {
+        console.warn(`Could not fetch all community posts for admin: ${error.message}`);
+        return [];
+    }
+};
+
+export const createCommunityPost = async (post: { room: string; title: string; body: string; authorId: string; imageUrl?: string; isAnonymous?: boolean }): Promise<void> => {
+    const dataToInsert = {
+        room: post.room,
+        title: post.title,
+        body: post.body,
+        author_id: post.authorId,
+        image_url: post.imageUrl,
+        is_anonymous: post.isAnonymous,
     };
-
-    const { error } = await supabase.from('community_posts').insert(convertKeysToSnakeCase(newPost));
-    if (error) throw error;
-
-    if (postData.room === 'testemunhos') {
-        await awardAchievement(author.id, 'first_testimonial');
-    }
-}
-export const updateCommunityPost = async (postId: string, postData: Partial<CommunityPost>): Promise<void> => {
-    const { error } = await supabase.from('community_posts').update(convertKeysToSnakeCase(postData)).eq('id', postId);
-    if (error) throw error;
-}
-export const deleteCommunityPost = async (postId: string): Promise<void> => {
-    const { error } = await supabase.from('community_posts').delete().eq('id', postId);
-    if (error) throw error;
-}
-export const addReactionToPost = (postId: string, userId: string) => updateJsonbArray('community_posts', postId, 'reactions', userId, () => ({ userId }), (item, uId) => item.userId === uId);
-export const addCommentToPost = async (postId: string, body: string, user: User) => {
-    const { data, error } = await supabase.from('community_posts').select('comments, author').eq('id', postId).single();
-    if (error || !data) throw error || new Error("Not found");
-    
-    let currentComments = convertKeysToCamelCase<Comment[]>(data.comments || []);
-    const newComment = { id: crypto.randomUUID(), body, author: { id: user.id, name: user.fullName, avatarUrl: user.avatarUrl }, createdAt: new Date().toISOString(), reactions: [] };
-    currentComments.push(newComment);
-    
-    const { error: updateError } = await supabase.from('community_posts').update({ comments: convertKeysToSnakeCase(currentComments) }).eq('id', postId);
-    if (updateError) throw updateError;
-    
-    // Notificação (simplificada)
-    const postAuthor = convertKeysToCamelCase<any>(data.author);
-    if (postAuthor && postAuthor.id !== user.id) {
-        await createNotification(`${user.fullName} respondeu em "${postAuthor.title}"`, body.substring(0, 100));
-    }
+    const { error } = await supabase.from('community_posts').insert(dataToInsert);
+    handleSupabaseError(error, 'createCommunityPost');
 };
 
-export const addReactionToComment = (postId: string, commentId: string, userId: string) => { /* Complex logic, simplified */ };
-export const deleteCommentFromPost = (postId: string, commentId: string) => { /* Complex logic, simplified */ };
-export const saveTestimonial = async (postId: string, userId: string): Promise<void> => {
-    const { data, error } = await supabase.from('community_posts').select('saved_by').eq('id', postId).single();
-    if (error || !data) throw error || new Error("Not found");
-    
-    let savedBy = data.saved_by || [];
-    const userIndex = savedBy.indexOf(userId);
-    
-    if (userIndex > -1) savedBy.splice(userIndex, 1);
-    else savedBy.push(userId);
-    
-    await supabase.from('community_posts').update({ saved_by: savedBy }).eq('id', postId);
-}
+export const updateCommunityPost = async (id: string, updates: Partial<CommunityPost>): Promise<void> => {
+    const { error } = await supabase.from('community_posts').update(convertKeysToSnakeCase(updates)).eq('id', id);
+    handleSupabaseError(error, `updateCommunityPost (id: ${id})`);
+};
 
+export const deleteCommunityPost = async (id: string): Promise<void> => {
+    const { error } = await supabase.from('community_posts').delete().eq('id', id);
+    handleSupabaseError(error, `deleteCommunityPost (id: ${id})`);
+};
 
-// --- Notifications API ---
+// --- Interactions (Reactions, Comments, Saves) ---
+export const addReactionToPost = (postId: string, userId: string) => updateJsonbArray(
+    'community_posts', postId, 'reactions', userId, 
+    () => ({ userId }), 
+    (item, uid) => item.userId === uid
+);
+export const saveTestimonial = (postId: string, userId: string) => updateJsonbArray(
+    'community_posts', postId, 'saved_by', userId, 
+    () => userId, 
+    (item, uid) => item === uid
+);
+export const addCommentToPost = (postId: string, body: string, user: User) => updateJsonbArray(
+    'community_posts', postId, 'comments', user.id,
+    (u) => ({ id: crypto.randomUUID(), body, author: { id: u!.id, fullName: u!.fullName, avatarUrl: u!.avatarUrl }, createdAt: new Date().toISOString(), reactions: [] }),
+    () => false, // Always add, never remove with this specific function
+    user.id
+);
+
+// Other APIs (Notifications, Live Sessions, etc.) would follow a similar pattern
 export const getNotifications = async (): Promise<Notification[]> => {
-    const { data, error } = await supabase.from('notifications').select('*').order('created_at', { ascending: false });
-    return data ? convertKeysToCamelCase<Notification[]>(data) : [];
+    try {
+        const { data, error } = await supabase.from('notifications').select('*').order('created_at', { ascending: false });
+        if (error) throw error;
+        return data ? convertKeysToCamelCase<Notification[]>(data) : [];
+    } catch (error: any) {
+        console.warn(`Could not fetch notifications: ${error.message}`);
+        return [];
+    }
 };
-const createNotification = async (title: string, body: string) => {
-    await supabase.from('notifications').insert({ title, body });
-}
 export const markNotificationAsRead = async (notificationId: string, userId: string): Promise<void> => {
-    // Implementação via RPC seria mais robusta, mas para simplificar:
-    const { data } = await supabase.from('notifications').select('read_by').eq('id', notificationId).single();
-    const readBy = data?.read_by || [];
-    if (!readBy.includes(userId)) {
-        await supabase.from('notifications').update({ read_by: [...readBy, userId] }).eq('id', notificationId);
-    }
-}
+     const { data } = await supabase.from('notifications').select('read_by').eq('id', notificationId).single();
+     const readBy = data?.read_by || [];
+     if (!readBy.includes(userId)) {
+        const { error } = await supabase.from('notifications').update({ read_by: [...readBy, userId] }).eq('id', notificationId);
+        handleSupabaseError(error, 'markNotificationAsRead');
+     }
+};
 
-// --- Live Sessions API ---
 export const getLiveSessions = async (): Promise<LiveSession[]> => {
-    const { data, error } = await supabase.from('live_sessions').select('*').order('scheduled_at', { ascending: false });
-    return data ? convertKeysToCamelCase<LiveSession[]>(data) : [];
-}
-export const createLiveSession = async (session: Omit<LiveSession, 'id'|'reactions'|'comments'>): Promise<void> => {
-    await supabase.from('live_sessions').insert(convertKeysToSnakeCase(session));
-}
-export const updateLiveSession = async (sessionId: string, data: Partial<LiveSession>): Promise<void> => {
-    await supabase.from('live_sessions').update(convertKeysToSnakeCase(data)).eq('id', sessionId);
-}
-export const deleteLiveSession = async (sessionId: string): Promise<void> => {
-    await supabase.from('live_sessions').delete().eq('id', sessionId);
-}
-export const addReactionToLiveSession = (sessionId: string, userId: string) => updateJsonbArray('live_sessions', sessionId, 'reactions', userId, () => ({ userId }), (item, uId) => item.userId === uId);
-export const addCommentToLiveSession = (sessionId: string, body: string, user: User) => updateJsonbArray('live_sessions', sessionId, 'comments', user.id, u => ({ id: crypto.randomUUID(), body, author: { id: u.id, name: u.fullName, avatarUrl: u.avatarUrl }, createdAt: new Date().toISOString(), reactions: [] }), () => false);
-export const addReactionToLiveComment = (sessionId: string, commentId: string, userId: string) => { /* Complex logic, simplified */ };
-export const deleteCommentFromLiveSession = (sessionId: string, commentId: string) => { /* Complex logic, simplified */ };
-
-
-// --- Appearance API ---
-export const getAppearanceSettings = async (): Promise<AppearanceSettings> => {
-    const { data } = await supabase.from('appearance_settings').select('settings').eq('id', 1).single();
-    return data ? convertKeysToCamelCase<AppearanceSettings>(data.settings) : {} as AppearanceSettings;
-}
-export const updateAppearanceSettings = async (settings: Partial<AppearanceSettings>): Promise<void> => {
-    const current = await getAppearanceSettings();
-    await supabase.from('appearance_settings').update({ settings: convertKeysToSnakeCase({ ...current, ...settings }) }).eq('id', 1);
-}
-
-// --- Gamification, Journal, Plans, Events, etc. ---
-export const markContentAsComplete = async (userId: string, contentId: string) => {
-    const { data } = await supabase.from('profiles').select('completed_content_ids').eq('id', userId).single();
-    const completed = data?.completed_content_ids || [];
-    if (!completed.includes(contentId)) {
-        await supabase.from('profiles').update({ completed_content_ids: [...completed, contentId] }).eq('id', userId);
+    try {
+        const { data, error } = await supabase.from('live_sessions').select('*').order('scheduled_at', { ascending: false });
+        if (error) throw error;
+        return data ? convertKeysToCamelCase<LiveSession[]>(data) : [];
+    } catch (error: any) {
+        console.warn(`Could not fetch live sessions: ${error.message}`);
+        return [];
     }
 };
+
+export const createLiveSession = async (session: Omit<LiveSession, 'id'>): Promise<void> => {
+    const { error } = await supabase.from('live_sessions').insert(convertKeysToSnakeCase(session));
+    handleSupabaseError(error, 'createLiveSession');
+};
+
+export const updateLiveSession = async (id: string, updates: Partial<LiveSession>): Promise<void> => {
+    const { error } = await supabase.from('live_sessions').update(convertKeysToSnakeCase(updates)).eq('id', id);
+    handleSupabaseError(error, `updateLiveSession (id: ${id})`);
+};
+
+export const deleteLiveSession = async (id: string): Promise<void> => {
+    const { error } = await supabase.from('live_sessions').delete().eq('id', id);
+    handleSupabaseError(error, `deleteLiveSession (id: ${id})`);
+};
+
+
+// Other interactions
+export const addReactionToLiveSession = (sessionId: string, userId: string) => updateJsonbArray('live_sessions', sessionId, 'reactions', userId, () => ({ userId }), (item, uid) => item.userId === uid);
+export const addCommentToLiveSession = (sessionId: string, body: string, user: User) => updateJsonbArray('live_sessions', sessionId, 'comments', user.id, u => ({ id: crypto.randomUUID(), body, author: { id: u!.id, fullName: u!.fullName, avatarUrl: u!.avatarUrl }, createdAt: new Date().toISOString(), reactions: [] }), () => false, user.id);
+export const addReactionToLiveComment = async (sessionId: string, commentId: string, userId: string) => {
+    // This is more complex because it's a nested array.
+    const { data } = await supabase.from('live_sessions').select('comments').eq('id', sessionId).single();
+    let comments = convertKeysToCamelCase<Comment[]>(data?.comments || []);
+    const commentIndex = comments.findIndex(c => c.id === commentId);
+    if (commentIndex === -1) return;
+    const reactionIndex = comments[commentIndex].reactions.findIndex(r => r.userId === userId);
+    if (reactionIndex > -1) {
+        comments[commentIndex].reactions.splice(reactionIndex, 1);
+    } else {
+        comments[commentIndex].reactions.push({ userId });
+    }
+    const { error } = await supabase.from('live_sessions').update({ comments: convertKeysToSnakeCase(comments) }).eq('id', sessionId);
+    handleSupabaseError(error, 'addReactionToLiveComment');
+};
+export const deleteCommentFromLiveSession = async (sessionId: string, commentId: string) => {
+    const { data } = await supabase.from('live_sessions').select('comments').eq('id', sessionId).single();
+    const comments = (data?.comments || []).filter((c: any) => c.id !== commentId);
+    const { error } = await supabase.from('live_sessions').update({ comments }).eq('id', sessionId);
+    handleSupabaseError(error, 'deleteCommentFromLiveSession');
+};
+
+export const addReactionToContent = (contentId: string, userId: string) => updateJsonbArray('content', contentId, 'reactions', userId, () => ({ userId }), (item, uid) => item.userId === uid);
+export const addCommentToContent = (contentId: string, body: string, user: User) => updateJsonbArray('content', contentId, 'comments', user.id, u => ({ id: crypto.randomUUID(), body, author: { id: u!.id, fullName: u!.fullName, avatarUrl: u!.avatarUrl }, createdAt: new Date().toISOString(), reactions: [] }), () => false, user.id);
+export const addReactionToContentComment = async (contentId: string, commentId: string, userId: string) => {
+    const { data } = await supabase.from('content').select('comments').eq('id', contentId).single();
+    let comments = convertKeysToCamelCase<Comment[]>(data?.comments || []);
+    const commentIndex = comments.findIndex(c => c.id === commentId);
+    if (commentIndex === -1) return;
+    const reactionIndex = comments[commentIndex].reactions.findIndex(r => r.userId === userId);
+    if (reactionIndex > -1) {
+        comments[commentIndex].reactions.splice(reactionIndex, 1);
+    } else {
+        comments[commentIndex].reactions.push({ userId });
+    }
+    const { error } = await supabase.from('content').update({ comments: convertKeysToSnakeCase(comments) }).eq('id', contentId);
+    handleSupabaseError(error, 'addReactionToContentComment');
+};
+export const deleteCommentFromContent = async (contentId: string, commentId: string) => {
+    const { data } = await supabase.from('content').select('comments').eq('id', contentId).single();
+    const comments = (data?.comments || []).filter((c: any) => c.id !== commentId);
+    const { error } = await supabase.from('content').update({ comments }).eq('id', contentId);
+    handleSupabaseError(error, 'deleteCommentFromContent');
+};
+export const deleteCommentFromPost = async (postId: string, commentId: string) => {
+    const { data } = await supabase.from('community_posts').select('comments').eq('id', postId).single();
+    const comments = (data?.comments || []).filter((c: any) => c.id !== commentId);
+    const { error } = await supabase.from('community_posts').update({ comments }).eq('id', postId);
+    handleSupabaseError(error, 'deleteCommentFromPost');
+};
+export const addReactionToComment = async (postId: string, commentId: string, userId: string) => {
+    const { data } = await supabase.from('community_posts').select('comments').eq('id', postId).single();
+    let comments = convertKeysToCamelCase<Comment[]>(data?.comments || []);
+    const commentIndex = comments.findIndex(c => c.id === commentId);
+    if (commentIndex === -1) return;
+    const reactionIndex = comments[commentIndex].reactions.findIndex(r => r.userId === userId);
+    if (reactionIndex > -1) {
+        comments[commentIndex].reactions.splice(reactionIndex, 1);
+    } else {
+        comments[commentIndex].reactions.push({ userId });
+    }
+    const { error } = await supabase.from('community_posts').update({ comments: convertKeysToSnakeCase(comments) }).eq('id', postId);
+    handleSupabaseError(error, 'addReactionToComment');
+};
+
+export const markContentAsComplete = (userId: string, contentId: string) => updateJsonbArray('profiles', userId, 'completed_content_ids', contentId, () => contentId, (item, cid) => item === cid);
 export const unmarkContentAsComplete = async (userId: string, contentId: string) => {
     const { data } = await supabase.from('profiles').select('completed_content_ids').eq('id', userId).single();
-    const completed = data?.completed_content_ids || [];
-    await supabase.from('profiles').update({ completed_content_ids: completed.filter((id: string) => id !== contentId) }).eq('id', userId);
+    const completedIds = (data?.completed_content_ids || []).filter((id: string) => id !== contentId);
+    const { error } = await supabase.from('profiles').update({ completed_content_ids: completedIds }).eq('id', userId);
+    handleSupabaseError(error, 'unmarkContentAsComplete');
 };
+export const awardAchievement = (userId: string, achievementId: string) => updateJsonbArray('profiles', userId, 'unlocked_achievement_ids', achievementId, () => achievementId, (item, achId) => item === achId);
 
-export const awardAchievement = async (userId: string, achievementId: string) => {
-    const user = await getUserProfile(userId);
-    if (user) {
-        const currentAchievements = user.achievements || [];
-        if (!currentAchievements.includes(achievementId)) {
-            await supabase.from('profiles').update({ achievements: [...currentAchievements, achievementId] }).eq('id', userId);
+
+// Appearance
+export const getAppearanceSettings = async (): Promise<AppearanceSettings> => {
+    try {
+        const { data, error } = await supabase.from('appearance_settings').select('settings').eq('id', 1).single();
+        if (error) {
+            // Se o erro for "PGRST116" (row not found), retorna o padrão, pois o upsert no salvamento criará a linha.
+            if (error.code === 'PGRST116') {
+                return defaultAppearanceSettings;
+            }
+            
+            if (error.message?.includes("relation") && error.message?.includes("does not exist")) {
+                 console.error("Tabela 'appearance_settings' não encontrada. AÇÃO NECESSÁRIA: Você executou o script SQL inicial?");
+                 return defaultAppearanceSettings;
+            }
+            
+            throw error;
         }
+        const settings = data ? convertKeysToCamelCase<Partial<AppearanceSettings>>(data.settings) : {};
+        return { ...defaultAppearanceSettings, ...settings };
+    } catch (error: any) {
+        console.warn(`Could not fetch appearance settings: ${error.message}`);
+        return defaultAppearanceSettings;
     }
 };
-
-export const getChallenges = async (): Promise<Challenge[]> => (await supabase.from('challenges').select('*')).data?.map(c => convertKeysToCamelCase<Challenge>(c)) || [];
-export const createChallenge = async (c: Omit<Challenge, 'id'|'createdAt'>) => await supabase.from('challenges').insert(convertKeysToSnakeCase(c));
-export const updateChallenge = async (id: string, c: Partial<Challenge>) => await supabase.from('challenges').update(convertKeysToSnakeCase(c)).eq('id', id);
-export const deleteChallenge = async (id: string) => await supabase.from('challenges').delete().eq('id', id);
-export const getUserChallengeCompletions = async (userId: string): Promise<UserChallengeCompletion[]> => (await supabase.from('user_challenge_completions').select('*').eq('user_id', userId)).data?.map(c => convertKeysToCamelCase<UserChallengeCompletion>(c)) || [];
-export const completeChallenge = async (userId: string, challengeId: string, points: number) => {
-    await supabase.from('user_challenge_completions').insert({ user_id: userId, challenge_id: challengeId });
-    const { data: user } = await supabase.from('profiles').select('points').eq('id', userId).single();
-    await supabase.from('profiles').update({ points: (user?.points || 0) + points }).eq('id', userId);
-    await awardAchievement(userId, 'first_challenge');
+export const updateAppearanceSettings = async (updates: Partial<AppearanceSettings>): Promise<void> => {
+    const currentSettings = await getAppearanceSettings();
+    const newSettings = { ...currentSettings, ...updates };
+    
+    // Usamos UPSERT (insert or update) para garantir que a configuração seja salva mesmo se a tabela estiver vazia
+    const { error } = await supabase.from('appearance_settings').upsert({ id: 1, settings: newSettings });
+    
+    handleSupabaseError(error, 'updateAppearanceSettings');
+    document.dispatchEvent(new CustomEvent('settingsUpdated'));
 };
 
-export const getJournalEntries = async (userId: string): Promise<JournalEntry[]> => (await supabase.from('journal_entries').select('*').eq('user_id', userId).order('updated_at', {ascending: false})).data?.map(j => convertKeysToCamelCase<JournalEntry>(j)) || [];
-export const createJournalEntry = async (j: Omit<JournalEntry, 'id'|'createdAt'|'updatedAt'>) => {
-    const { data } = await supabase.from('journal_entries').insert(convertKeysToSnakeCase(j)).select().single();
-    await awardAchievement(j.userId, 'first_journal');
-    return convertKeysToCamelCase<JournalEntry>(data);
-};
-export const updateJournalEntry = async (id: string, content: string, title: string): Promise<JournalEntry> => {
-    const { data } = await supabase.from('journal_entries').update({ content, title, updated_at: new Date().toISOString() }).eq('id', id).select().single();
-    return convertKeysToCamelCase<JournalEntry>(data);
-};
-export const deleteJournalEntry = async (id: string) => await supabase.from('journal_entries').delete().eq('id', id);
+// --- Push Notifications ---
+// NOTE: You need to create a `push_subscriptions` table in Supabase.
+// SQL:
+// CREATE TABLE push_subscriptions (
+//   endpoint TEXT PRIMARY KEY,
+//   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+//   subscription_data JSONB NOT NULL,
+//   created_at TIMESTAMPTZ DEFAULT NOW()
+// );
+// ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
+// CREATE POLICY "Users can manage their own subscriptions" ON push_subscriptions
+//   FOR ALL USING (auth.uid() = user_id);
 
+export const savePushSubscription = async (userId: string, subscription: PushSubscription): Promise<void> => {
+    const subscriptionData = subscription.toJSON();
+    const { error } = await supabase
+        .from('push_subscriptions')
+        .upsert({
+            endpoint: subscription.endpoint,
+            user_id: userId,
+            subscription_data: subscriptionData,
+        }, { onConflict: 'endpoint' });
+    
+    handleSupabaseError(error, 'savePushSubscription');
+};
+
+export const removePushSubscription = async (subscription: PushSubscription): Promise<void> => {
+    const { error } = await supabase
+        .from('push_subscriptions')
+        .delete()
+        .eq('endpoint', subscription.endpoint);
+
+    handleSupabaseError(error, 'removePushSubscription');
+};
+
+
+// Challenges
+export const getChallenges = async (): Promise<Challenge[]> => {
+    try {
+        const { data, error } = await supabase.from('challenges').select('*').order('created_at', { ascending: false });
+        if (error) throw error;
+        return data ? convertKeysToCamelCase<Challenge[]>(data) : [];
+    } catch (error: any) {
+        console.warn(`Could not fetch challenges: ${error.message}`);
+        return [];
+    }
+};
+export const createChallenge = async (challenge: Omit<Challenge, 'id' | 'createdAt'>): Promise<void> => {
+    const { error } = await supabase.from('challenges').insert(convertKeysToSnakeCase(challenge));
+    handleSupabaseError(error, 'createChallenge');
+};
+export const updateChallenge = async (id: string, updates: Partial<Challenge>): Promise<void> => {
+    const { error } = await supabase.from('challenges').update(convertKeysToSnakeCase(updates)).eq('id', id);
+    handleSupabaseError(error, `updateChallenge (id: ${id})`);
+};
+export const deleteChallenge = async (id: string): Promise<void> => {
+    const { error } = await supabase.from('challenges').delete().eq('id', id);
+    handleSupabaseError(error, `deleteChallenge (id: ${id})`);
+};
+export const getUserChallengeCompletions = async (userId: string): Promise<UserChallengeCompletion[]> => {
+    try {
+        const { data, error } = await supabase.from('user_challenge_completions').select('*').eq('user_id', userId);
+        if (error) throw error;
+        return data ? convertKeysToCamelCase<UserChallengeCompletion[]>(data) : [];
+    } catch (error: any) {
+        console.warn(`Could not fetch user challenge completions: ${error.message}`);
+        return [];
+    }
+};
+export const completeChallenge = async (userId: string, challengeId: string): Promise<void> => {
+    const { error: completionError } = await supabase.from('user_challenge_completions').insert({ user_id: userId, challenge_id: challengeId });
+    handleSupabaseError(completionError, 'completeChallenge:insert');
+};
+
+// Reading Plans
+export const getReadingPlans = async (): Promise<ReadingPlan[]> => {
+    try {
+        const { data, error } = await supabase.from('reading_plans').select('*');
+        if (error) throw error;
+        return data ? convertKeysToCamelCase<ReadingPlan[]>(data) : [];
+    } catch (error: any) {
+        console.warn(`Could not fetch reading plans: ${error.message}`);
+        return [];
+    }
+};
+export const getReadingPlanById = async (id: string): Promise<ReadingPlan | null> => {
+    try {
+        const { data, error } = await supabase.from('reading_plans').select('*').eq('id', id).single();
+        if (error && error.code !== 'PGRST116') throw error;
+        return data ? convertKeysToCamelCase<ReadingPlan>(data) : null;
+    } catch (error: any) {
+        console.warn(`Could not fetch reading plan by ID (id: ${id}): ${error.message}`);
+        return null;
+    }
+};
+export const createReadingPlan = async (plan: Omit<ReadingPlan, 'id'>): Promise<void> => {
+    const { error } = await supabase.from('reading_plans').insert(convertKeysToSnakeCase(plan));
+    handleSupabaseError(error, 'createReadingPlan');
+};
+export const updateReadingPlan = async (plan: ReadingPlan): Promise<void> => {
+    const { id, ...planData } = plan;
+    const { error } = await supabase.from('reading_plans').update(convertKeysToSnakeCase(planData)).eq('id', id);
+    handleSupabaseError(error, `updateReadingPlan (id: ${id})`);
+};
+export const deleteReadingPlan = async (id: string): Promise<void> => {
+    const { error } = await supabase.from('reading_plans').delete().eq('id', id);
+    handleSupabaseError(error, `deleteReadingPlan (id: ${id})`);
+};
+export const getAllUserReadingProgress = async (userId: string): Promise<UserReadingPlanProgress[]> => {
+    try {
+        const { data, error } = await supabase.from('user_reading_plan_progress').select('*').eq('user_id', userId);
+        if (error) throw error;
+        return data ? convertKeysToCamelCase<UserReadingPlanProgress[]>(data) : [];
+    } catch (error: any) {
+        console.warn(`Could not fetch all user reading progress: ${error.message}`);
+        return [];
+    }
+};
+export const getUserReadingPlanProgressForPlan = async (userId: string, planId: string): Promise<UserReadingPlanProgress | null> => {
+    try {
+        const { data, error } = await supabase.from('user_reading_plan_progress').select('*').eq('user_id', userId).eq('plan_id', planId).single();
+        if (error && error.code !== 'PGRST116') throw error;
+        return data ? convertKeysToCamelCase<UserReadingPlanProgress>(data) : null;
+    } catch (error: any) {
+        console.warn(`Could not fetch user reading progress for plan (planId: ${planId}): ${error.message}`);
+        return null;
+    }
+};
+export const updateUserReadingPlanProgress = async (userId: string, planId: string, completedDays: number[]): Promise<void> => {
+    const { error } = await supabase.from('user_reading_plan_progress').upsert({ user_id: userId, plan_id: planId, completed_days: completedDays });
+    handleSupabaseError(error, 'updateUserReadingPlanProgress');
+};
+
+// Events
+export const getEvents = async (): Promise<Event[]> => {
+    try {
+        const { data, error } = await supabase.from('events').select('*').order('date', { ascending: false });
+        if (error) throw error;
+        return data ? convertKeysToCamelCase<Event[]>(data) : [];
+    } catch (error: any) {
+        console.warn(`Could not fetch events: ${error.message}`);
+        return [];
+    }
+};
+export const getEventById = async (id: string): Promise<Event | null> => {
+    try {
+        const { data, error } = await supabase.from('events').select('*').eq('id', id).single();
+        if (error && error.code !== 'PGRST116') throw error;
+        return data ? convertKeysToCamelCase<Event>(data) : null;
+    } catch (error: any) {
+        console.warn(`Could not fetch event by ID (id: ${id}): ${error.message}`);
+        return null;
+    }
+};
+export const createEvent = async (event: Omit<Event, 'id' | 'attendeeIds'>): Promise<void> => {
+    const { error } = await supabase.from('events').insert(convertKeysToSnakeCase(event));
+    handleSupabaseError(error, 'createEvent');
+};
+export const updateEvent = async (event: Event): Promise<void> => {
+    const { id, ...eventData } = event;
+    const { error } = await supabase.from('events').update(convertKeysToSnakeCase(eventData)).eq('id', id);
+    handleSupabaseError(error, `updateEvent (id: ${id})`);
+};
+export const deleteEvent = async (id: string): Promise<void> => {
+    const { error } = await supabase.from('events').delete().eq('id', id);
+    handleSupabaseError(error, `deleteEvent (id: ${id})`);
+};
+export const registerForEvent = (eventId: string, userId: string) => updateJsonbArray('events', eventId, 'attendee_ids', userId, () => userId, (item, uid) => item === uid);
+
+// Journal
+export const getJournalEntries = async (userId: string): Promise<JournalEntry[]> => {
+    try {
+        const { data, error } = await supabase.from('journal_entries').select('*').eq('user_id', userId).order('updated_at', { ascending: false });
+        if (error) throw error;
+        return data ? convertKeysToCamelCase<JournalEntry[]>(data) : [];
+    } catch (error: any) {
+        console.warn(`Could not fetch journal entries: ${error.message}`);
+        return [];
+    }
+};
+export const createJournalEntry = async (entry: Omit<JournalEntry, 'id' | 'createdAt' | 'updatedAt'>): Promise<void> => {
+    const { error } = await supabase.from('journal_entries').insert(convertKeysToSnakeCase(entry));
+    handleSupabaseError(error, 'createJournalEntry');
+};
+export const updateJournalEntry = async (id: string, content: string, title: string): Promise<void> => {
+    const { error } = await supabase.from('journal_entries').update({ content, title, updated_at: new Date().toISOString() }).eq('id', id);
+    handleSupabaseError(error, `updateJournalEntry (id: ${id})`);
+};
+export const deleteJournalEntry = async (id: string): Promise<void> => {
+    const { error } = await supabase.from('journal_entries').delete().eq('id', id);
+    handleSupabaseError(error, `deleteJournalEntry (id: ${id})`);
+};
+
+// Announcements
 export const getAnnouncements = async (): Promise<Announcement[]> => {
-    const { data } = await supabase.from('announcements').select('*').eq('is_active', true);
-    return data ? convertKeysToCamelCase<Announcement[]>(data) : [];
+    try {
+        const { data, error } = await supabase.from('announcements').select('*').eq('is_active', true).order('created_at', { ascending: false });
+        if (error) throw error;
+        return data ? convertKeysToCamelCase<Announcement[]>(data) : [];
+    } catch (error: any) {
+        console.warn(`Could not fetch announcements: ${error.message}`);
+        return [];
+    }
 };
 export const getAllAnnouncementsForAdmin = async (): Promise<Announcement[]> => {
-    const { data } = await supabase.from('announcements').select('*').order('created_at', { ascending: false });
-    return data ? convertKeysToCamelCase<Announcement[]>(data) : [];
-};
-export const createAnnouncement = async (ann: Omit<Announcement, 'id'|'createdAt'>) => await supabase.from('announcements').insert(convertKeysToSnakeCase(ann));
-export const updateAnnouncement = async (id: string, ann: Partial<Announcement>) => await supabase.from('announcements').update(convertKeysToSnakeCase(ann)).eq('id', id);
-
-export const getReadingPlans = async (): Promise<ReadingPlan[]> => (await supabase.from('reading_plans').select('*')).data?.map(p => convertKeysToCamelCase<ReadingPlan>(p)) || [];
-export const getReadingPlanById = async (id: string): Promise<ReadingPlan | undefined> => {
-    const { data } = await supabase.from('reading_plans').select('*').eq('id', id).single();
-    return data ? convertKeysToCamelCase<ReadingPlan>(data) : undefined;
-};
-export const createReadingPlan = async (p: Omit<ReadingPlan, 'id'>) => {
-    const { data } = await supabase.from('reading_plans').insert(convertKeysToSnakeCase(p)).select().single();
-    return convertKeysToCamelCase<ReadingPlan>(data);
-};
-export const updateReadingPlan = async (p: ReadingPlan) => {
-    const { data } = await supabase.from('reading_plans').update(convertKeysToSnakeCase(p)).eq('id', p.id).select().single();
-    return convertKeysToCamelCase<ReadingPlan>(data);
-};
-export const deleteReadingPlan = async (id: string) => await supabase.from('reading_plans').delete().eq('id', id);
-
-export const getAllUserReadingProgress = async (userId: string): Promise<UserReadingPlanProgress[]> => (await supabase.from('user_reading_plan_progress').select('*').eq('user_id', userId)).data?.map(p => convertKeysToCamelCase<UserReadingPlanProgress>(p)) || [];
-export const getUserReadingPlanProgressForPlan = async (userId: string, planId: string): Promise<UserReadingPlanProgress | undefined> => {
-    const { data } = await supabase.from('user_reading_plan_progress').select('*').eq('user_id', userId).eq('plan_id', planId).single();
-    return data ? convertKeysToCamelCase<UserReadingPlanProgress>(data) : undefined;
-};
-export const updateUserReadingPlanProgress = async (userId: string, planId: string, completedDays: number[]) => await supabase.from('user_reading_plan_progress').upsert({ user_id: userId, plan_id: planId, completed_days: completedDays }, { onConflict: 'user_id,plan_id' });
-
-export const getEvents = async (): Promise<Event[]> => (await supabase.from('events').select('*').order('date', { ascending: false })).data?.map(e => convertKeysToCamelCase<Event>(e)) || [];
-export const getEventById = async (id: string): Promise<Event | undefined> => {
-    const { data } = await supabase.from('events').select('*').eq('id', id).single();
-    return data ? convertKeysToCamelCase<Event>(data) : undefined;
-};
-export const registerForEvent = async (eventId: string, userId: string) => {
-    const { data } = await supabase.from('events').select('attendee_ids').eq('id', eventId).single();
-    const attendees = data?.attendee_ids || [];
-    if (!attendees.includes(userId)) {
-        await supabase.from('events').update({ attendee_ids: [...attendees, userId] }).eq('id', eventId);
+    try {
+        const { data, error } = await supabase.from('announcements').select('*').order('created_at', { ascending: false });
+        if (error) throw error;
+        return data ? convertKeysToCamelCase<Announcement[]>(data) : [];
+    } catch (error: any) {
+        console.warn(`Could not fetch all announcements for admin: ${error.message}`);
+        return [];
     }
 };
-export const createEvent = async (e: Omit<Event, 'id'|'attendeeIds'>) => {
-    const { data } = await supabase.from('events').insert(convertKeysToSnakeCase(e)).select().single();
-    return convertKeysToCamelCase<Event>(data);
+export const createAnnouncement = async (ann: Omit<Announcement, 'id' | 'createdAt'>): Promise<void> => {
+    const { error } = await supabase.from('announcements').insert(convertKeysToSnakeCase(ann));
+    handleSupabaseError(error, 'createAnnouncement');
+    document.dispatchEvent(new CustomEvent('announcementsUpdated'));
 };
-export const updateEvent = async (e: Event) => {
-    const { data } = await supabase.from('events').update(convertKeysToSnakeCase(e)).eq('id', e.id).select().single();
-    return convertKeysToCamelCase<Event>(data);
+export const updateAnnouncement = async (id: string, updates: Partial<Announcement>): Promise<void> => {
+    const { error } = await supabase.from('announcements').update(convertKeysToSnakeCase(updates)).eq('id', id);
+    handleSupabaseError(error, 'updateAnnouncement');
+    document.dispatchEvent(new CustomEvent('announcementsUpdated'));
 };
-export const deleteEvent = async (id: string) => await supabase.from('events').delete().eq('id', id);
+
+export const deleteAnnouncement = async (id: string): Promise<void> => {
+    const { error } = await supabase.from('announcements').delete().eq('id', id);
+    handleSupabaseError(error, `deleteAnnouncement (id: ${id})`);
+    document.dispatchEvent(new CustomEvent('announcementsUpdated'));
+};

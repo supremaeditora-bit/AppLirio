@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import {
     HomeIcon as HomeIconOutline,
@@ -43,6 +44,8 @@ import {
     BackwardIcon as BackwardIconOutline,
     ArrowDownTrayIcon as ArrowDownTrayIconOutline,
     PencilSquareIcon as PencilSquareIconOutline,
+    SpeakerWaveIcon as SpeakerWaveIconOutline,
+    SparklesIcon as SparklesIconOutline,
 } from '@heroicons/react/24/outline';
 
 import {
@@ -100,6 +103,8 @@ export const ForwardIcon: React.FC<IconProps> = (props) => <ForwardIconOutline {
 export const BackwardIcon: React.FC<IconProps> = (props) => <BackwardIconOutline {...props} />;
 export const DownloadIcon: React.FC<IconProps> = (props) => <ArrowDownTrayIconOutline {...props} />;
 export const JournalIcon: React.FC<IconProps> = (props) => <PencilSquareIconOutline {...props} />;
+export const SpeakerWaveIcon: React.FC<IconProps> = (props) => <SpeakerWaveIconOutline {...props} />;
+export const SparklesIcon: React.FC<IconProps> = (props) => <SparklesIconOutline {...props} />;
 
 
 // --- Icons with Filled/Outline states ---

@@ -42,7 +42,7 @@ export default function ModerationManager() {
         results = results.filter(post => 
             post.title.toLowerCase().includes(lowercasedQuery) ||
             post.body.toLowerCase().includes(lowercasedQuery) ||
-            post.author.name.toLowerCase().includes(lowercasedQuery)
+            (post.author && post.author.fullName.toLowerCase().includes(lowercasedQuery))
         );
     }
 
@@ -100,13 +100,17 @@ export default function ModerationManager() {
           {filteredPosts.map(post => (
             <div key={post.id} className="border border-marrom-seiva/10 dark:border-creme-velado/10 p-4 rounded-lg flex items-start justify-between">
               <div>
-                <div className="flex items-center space-x-2">
-                  <img src={post.author.avatarUrl} alt={post.author.name} className="w-8 h-8 rounded-full object-cover" />
-                  <div>
-                    <p className="font-sans text-sm font-semibold text-verde-mata dark:text-creme-velado">{post.author.name}</p>
-                    <p className="text-xs text-marrom-seiva/70 dark:text-creme-velado/70">{formatTimeAgo(post.createdAt)}</p>
+                {post.author ? (
+                  <div className="flex items-center space-x-2">
+                    <img src={post.author.avatarUrl} alt={post.author.fullName} className="w-8 h-8 rounded-full object-cover" />
+                    <div>
+                      <p className="font-sans text-sm font-semibold text-verde-mata dark:text-creme-velado">{post.author.fullName}</p>
+                      <p className="text-xs text-marrom-seiva/70 dark:text-creme-velado/70">{formatTimeAgo(post.createdAt)}</p>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <p className="text-xs text-marrom-seiva/70 dark:text-creme-velado/70 italic">Autor não disponível</p>
+                )}
                 <h3 className="font-serif font-semibold mt-2">{post.title}</h3>
                 <p className="font-sans text-sm text-marrom-seiva/90 dark:text-creme-velado/90 mt-1">{post.body}</p>
               </div>

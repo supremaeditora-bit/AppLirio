@@ -5,6 +5,7 @@ import { uploadImage } from '../services/storageService';
 import Button from '../components/Button';
 import Spinner from '../components/Spinner';
 import { PhotoIcon } from '@heroicons/react/24/outline';
+import { processActivity } from '../services/gamificationService';
 
 interface PublishTestimonialProps {
   user: User | null;
@@ -53,17 +54,25 @@ export default function PublishTestimonial({ user, onNavigate, onUserUpdate }: P
             authorId: user.id,
             imageUrl: imageUrl
         });
-
-        // After publishing, fetch the latest user profile to get updated points/achievements
-        const updatedUser = await getUserProfile(user.id);
-        if (updatedUser) {
-            await onUserUpdate(updatedUser);
-        }
+        
+        // Gamification
+        const gamificationUpdate = processActivity(user, 'testemunho_compartilhado');
+        await onUserUpdate(gamificationUpdate);
         
         onNavigate('testimonials');
-    } catch (error) {
+    } catch (error: any) {
         console.error("Failed to publish testimonial", error);
-        alert("Ocorreu um erro ao publicar. Tente novamente.");
+        let errorMessage = "Ocorreu um erro ao publicar. Tente novamente.";
+        if (error.message) {
+            if (error.message.includes("violates row-level security policy")) {
+                errorMessage = "Falha ao publicar: Permissão negada. Verifique as regras de segurança (RLS) da tabela 'community_posts' no Supabase.";
+            } else if (error.message.includes("foreign key constraint")) {
+                errorMessage = "Falha ao publicar: O perfil do autor não foi encontrado. Verifique se o gatilho 'on_auth_user_created' está funcionando corretamente no Supabase.";
+            } else {
+                errorMessage = `Ocorreu um erro ao publicar: ${error.message}`;
+            }
+        }
+        alert(errorMessage);
     } finally {
         setIsLoading(false);
     }
@@ -99,7 +108,7 @@ export default function PublishTestimonial({ user, onNavigate, onUserUpdate }: P
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
                         placeholder="Um resumo da sua bênção"
-                        className="mt-2 w-full text-lg font-sans bg-branco-nevoa dark:bg-verde-mata border-2 border-transparent focus:border-dourado-suave focus:ring-dourado-suave rounded-xl p-4 transition"
+                        className="mt-2 w-full text-lg font-sans bg-branco-nevoa dark:bg-verde-mata border-2 border-transparent focus:border-dourado-suave focus:ring-dourado-suave rounded-xl p-4 transition placeholder:text-[#7A6C59] dark:placeholder:text-creme-velado/60"
                     />
                 </div>
                 <div>
@@ -109,7 +118,7 @@ export default function PublishTestimonial({ user, onNavigate, onUserUpdate }: P
                         value={body}
                         onChange={(e) => setBody(e.target.value)}
                         placeholder="Comece a escrever aqui a sua história..."
-                        className="mt-2 w-full text-lg font-sans bg-branco-nevoa dark:bg-verde-mata border-2 border-transparent focus:border-dourado-suave focus:ring-dourado-suave rounded-xl p-4 h-64 resize-none transition"
+                        className="mt-2 w-full text-lg font-sans bg-branco-nevoa dark:bg-verde-mata border-2 border-transparent focus:border-dourado-suave focus:ring-dourado-suave rounded-xl p-4 h-64 resize-none transition placeholder:text-[#7A6C59] dark:placeholder:text-creme-velado/60"
                         maxLength={MAX_CHARS}
                     />
                     <p className="text-right text-sm font-sans text-marrom-seiva/60 dark:text-creme-velado/60 mt-1">

@@ -3,8 +3,6 @@ export type Page = 'login' | 'signup' | 'landing' | 'home' | 'profile' | 'devoti
 
 export type Role = 'aluna' | 'mentora' | 'mod' | 'admin';
 
-export type UserLevel = 'Iniciante da Fé' | 'Aprendiz da Palavra' | 'Guerreira de Oração' | 'Mentora de Fé';
-
 export interface UserPlaylist {
   id: string;
   name: string;
@@ -15,6 +13,14 @@ export interface UserNotificationSettings {
   commentsOnMyPost: boolean;
   newLives: boolean;
   newPodcasts: boolean;
+  newDevotionals: boolean;
+  newPrayerRequests: boolean;
+  newStudies: boolean;
+  newMentorships: boolean;
+  newTestimonials: boolean;
+  newReadingPlans: boolean;
+  newEvents: boolean;
+  pushNotificationsEnabled: boolean;
 }
 
 export interface User {
@@ -30,13 +36,28 @@ export interface User {
     instagram?: string;
     facebook?: string;
   };
-  points: number;
-  level: UserLevel;
   completedContentIds: string[];
   createdAt?: any;
-  achievements: string[];
   notificationSettings: UserNotificationSettings;
   playlists: UserPlaylist[];
+  
+  // Gamification: "Jardim Secreto"
+  experience: number;
+  gardenLevel: number;
+  gardenLevelName: string;
+  currentStreak: number;
+  longestStreak: number;
+  lastActivityDate: string; // ISO Date string
+  unlockedAchievementIds: string[];
+}
+
+export interface Achievement {
+  id: string;
+  nome: string;
+  desc: string;
+  icone: string;
+  verso: string;
+  requisito?: { tipo: string; count: number };
 }
 
 export type ContentType = 'Devocional' | 'Live' | 'Podcast' | 'Estudo' | 'Mentoria';
@@ -69,7 +90,7 @@ export interface ContentItem {
 export interface Comment {
   id: string;
   body: string;
-  author: { id: string; name: string; avatarUrl: string };
+  author: { id: string; fullName: string; avatarUrl: string };
   createdAt: string;
   reactions: { userId: string }[];
 }
@@ -80,7 +101,8 @@ export interface CommunityPost {
   title: string;
   body: string;
   imageUrl?: string;
-  author: { id: string; name: string; avatarUrl: string };
+  authorId: string; // Foreign key to profiles table
+  author?: { id: string; fullName: string; avatarUrl: string }; // Populated by a JOIN query
   reactions: { userId: string }[];
   comments: Comment[];
   createdAt: string;
@@ -118,6 +140,7 @@ export interface GeneratedDevotional {
   weeklyChallenge: string;
   journalPrompts: string[];
   keywords: string[];
+  audioUrl?: string;
 }
 
 export interface ThemeColors {
@@ -126,30 +149,33 @@ export interface ThemeColors {
   lightText: string; // marrom-seiva
   darkComponentBg: string; // verde-mata
   darkBg: string; // verde-escuro-profundo
-  accent: string; // dourado-suave
+  lightAccent: string; // dourado-suave (light mode)
+  darkAccent: string; // dourado-suave (dark mode)
+  lightButtonBg: string;
+  lightButtonText: string;
+  darkButtonBg: string;
+  darkButtonText: string;
 }
 
 export interface AppearanceSettings {
-  heroData: {
-    title: string;
-    subtitle: string;
-    description: string;
-    imageUrl: string;
-  };
   isAiDevotionalEnabled: boolean;
   aiDevotionalScheduleTime: string;
   dailyDevotional?: {
       date: string;
       content: GeneratedDevotional;
   };
-  siteTitle?: string;
-  logoUrl?: string;
   faviconUrl?: string;
   themeColors?: ThemeColors;
   useBackgroundImage?: boolean;
-  backgroundImageUrl?: string;
+  backgroundImageUrlLight?: string;
+  backgroundImageUrlDark?: string;
+  componentBackgroundImageUrlLight?: string;
+  componentBackgroundImageUrlDark?: string;
   logoSettings?: {
     siteTitle?: string;
+    logoLightUrl?: string;
+    logoDarkUrl?: string;
+    logoDisplayMode?: 'image-only' | 'image-and-text';
   };
   fontSettings?: {
     headingFont: string;

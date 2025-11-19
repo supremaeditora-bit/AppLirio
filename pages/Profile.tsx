@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect, useRef } from 'react';
-import { User, Notification, Page, CommunityPost, Event } from '../types';
+import { User, Notification, Page, CommunityPost, Event, UserNotificationSettings } from '../types';
 import Spinner from '../components/Spinner';
 import Modal from '../components/Modal';
 import InputField from '../components/InputField';
@@ -7,9 +8,12 @@ import Button from '../components/Button';
 import { getNotifications, getCommunityPosts, updateCommunityPost, deleteCommunityPost, getEvents } from '../services/api';
 import { updateUserProfileDocument } from '../services/authService';
 import { uploadImage } from '../services/storageService';
-import { BookmarkIcon, UserCircleIcon, BellIcon, PrayingHandsIcon, PencilIcon, TrashIcon, CalendarDaysIcon, CameraIcon, MapPinIcon, HomeModernIcon, InstagramIcon, FacebookIcon } from '../components/Icons';
+import { clearAppCacheAndReload } from '../services/cacheService';
+import { BookmarkIcon, UserCircleIcon, BellIcon, PrayingHandsIcon, PencilIcon, TrashIcon, CalendarDaysIcon, CameraIcon, MapPinIcon, HomeModernIcon, InstagramIcon, FacebookIcon, Cog8ToothIcon, SparklesIcon } from '../components/Icons';
 import ConfirmationModal from '../components/ConfirmationModal';
 import ProgressBar from '../components/ProgressBar';
+import * as pushService from '../services/pushService';
+import { LEVELS } from '../services/gamificationService';
 
 interface ProfileProps {
     user: User | null;
@@ -17,13 +21,6 @@ interface ProfileProps {
     onNavigate: (page: Page, id?: string) => void;
     onViewTestimonial: (id: string) => void;
 }
-
-const levelData: { [key: string]: { nextLevel: string, points: number } } = {
-    'Iniciante da Fé': { nextLevel: 'Aprendiz da Palavra', points: 1000 },
-    'Aprendiz da Palavra': { nextLevel: 'Guerreira de Oração', points: 2500 },
-    'Guerreira de Oração': { nextLevel: 'Mentora de Fé', points: 5000 },
-    'Mentora de Fé': { nextLevel: 'Mentora de Fé', points: 5000 }
-};
 
 const ProfilePostCard: React.FC<{ post: CommunityPost, onCardClick: () => void }> = ({ post, onCardClick }) => (
     <div onClick={onCardClick} className="group cursor-pointer">
@@ -99,7 +96,7 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
   const [updateError, setUpdateError] = useState('');
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
-  const [activeTab, setActiveTab] = useState<'meus' | 'salvos' | 'notificacoes' | 'oracoes' | 'eventos'>('meus');
+  const [activeTab, setActiveTab] = useState<'meus' | 'salvos' | 'notificacoes' | 'oracoes' | 'eventos' | 'configuracoes'>('meus');
   
   // Data States
   const [allTestimonials, setAllTestimonials] = useState<CommunityPost[]>([]);
@@ -117,6 +114,14 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
   const [postToDelete, setPostToDelete] = useState<CommunityPost | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Push notification state
+  const [isPushEnabled, setIsPushEnabled] = useState(false);
+  const [isPushLoading, setIsPushLoading] = useState(true);
+  
+  // Cache clearing state
+  const [isCacheClearConfirmOpen, setIsCacheClearConfirmOpen] = useState(false);
+  const [isClearingCache, setIsClearingCache] = useState(false);
 
 
   const fetchProfileData = async () => {
@@ -145,6 +150,14 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
         socialLinks: user.socialLinks || {},
       });
       fetchProfileData();
+
+      // Check push notification status
+      setIsPushLoading(true);
+      pushService.getSubscription().then(subscription => {
+        const hasEnabledInSettings = user.notificationSettings?.pushNotificationsEnabled;
+        setIsPushEnabled(!!subscription && !!hasEnabledInSettings);
+        setIsPushLoading(false);
+      });
     }
   }, [user]);
   
@@ -181,9 +194,14 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
         await onUserUpdate(editedUser);
         setEditModalOpen(false);
     } catch (error: any) {
-        const errorMessage = "Falha ao atualizar o perfil. Tente novamente mais tarde.";
+        let errorMessage = "Falha ao atualizar o perfil. Tente novamente mais tarde.";
+        if (error.message && error.message.includes("violates row-level security policy")) {
+            errorMessage = "Permissão negada. Você só pode editar o seu próprio perfil. Verifique as políticas de segurança (RLS) da tabela 'profiles'.";
+        } else if (error.message) {
+            errorMessage = `Falha ao atualizar o perfil: ${error.message}`;
+        }
         setUpdateError(errorMessage);
-        console.error("Failed to update profile:", error.message || error);
+        console.error("Failed to update profile:", error);
     } finally {
         setIsUpdating(false);
     }
@@ -197,8 +215,9 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
             const newAvatarUrl = await uploadImage(file, user.id, () => {});
             await updateUserProfileDocument(user.id, { avatarUrl: newAvatarUrl });
             await onUserUpdate({ avatarUrl: newAvatarUrl });
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to upload avatar", error);
+            alert(`Falha ao enviar avatar: ${error.message || 'Ocorreu um erro desconhecido.'}`);
         } finally {
             setIsUploadingAvatar(false);
         }
@@ -241,11 +260,76 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
       fetchProfileData();
   };
   
+  const handlePushToggle = async () => {
+    if (!user) return;
+    setIsPushLoading(true);
+    
+    try {
+      if (isPushEnabled) { // If it's currently enabled, user wants to disable it
+        await pushService.unsubscribeUser();
+        setIsPushEnabled(false);
+        await onUserUpdate({ notificationSettings: { ...user.notificationSettings, pushNotificationsEnabled: false } });
+      } else { // If it's disabled, user wants to enable it
+        if (Notification.permission === 'denied') {
+          alert("As notificações foram bloqueadas nas configurações do seu navegador. Você precisa habilitá-las manualmente para recebê-las.");
+          return;
+        }
+        await pushService.subscribeUser(user.id);
+        setIsPushEnabled(true);
+        await onUserUpdate({ notificationSettings: { ...user.notificationSettings, pushNotificationsEnabled: true } });
+      }
+    } catch (error: any) {
+      console.error("Failed to toggle push notifications", error);
+      alert(`Não foi possível ${isPushEnabled ? 'desativar' : 'ativar'} as notificações: ${error.message}`);
+      // Revert state on error
+      setIsPushEnabled(isPushEnabled); 
+    } finally {
+      setIsPushLoading(false);
+    }
+  };
+
+  const handleToggleNotificationSetting = async (key: keyof UserNotificationSettings) => {
+      if (!user) return;
+      
+      const defaultSettings: UserNotificationSettings = {
+          commentsOnMyPost: true,
+          newLives: true,
+          newPodcasts: true,
+          newDevotionals: true,
+          newPrayerRequests: true,
+          newStudies: true,
+          newMentorships: true,
+          newTestimonials: true,
+          newReadingPlans: true,
+          newEvents: true,
+          pushNotificationsEnabled: false
+      };
+
+      const currentSettings = { ...defaultSettings, ...(user.notificationSettings || {}) };
+      const newSettings = { ...currentSettings, [key]: !currentSettings[key] };
+      
+      await onUserUpdate({ notificationSettings: newSettings });
+      // Note: In a real app, we'd save this to the DB here too.
+      // await updateUserProfileDocument(user.id, { notificationSettings: newSettings });
+  };
+  
+  const handleClearCache = async () => {
+    setIsClearingCache(true);
+    await clearAppCacheAndReload();
+    // The page will reload, so no need to set loading to false.
+  };
+
+
   if (!user) {
     return <div className="flex items-center justify-center h-full"><Spinner /></div>;
   }
   
-  const userLevelInfo = levelData[user.level] || levelData['Mentora de Fé'];
+  // Gamification calculations for profile
+  const nextLevel = LEVELS.find(l => l.nivel === (user.gardenLevel || 0) + 1);
+  const currentLevel = LEVELS.find(l => l.nivel === (user.gardenLevel || 0)) || LEVELS[0];
+  const progressToNext = nextLevel ? nextLevel.xp - currentLevel.xp : 1;
+  const currentProgress = nextLevel ? (user.experience || 0) - currentLevel.xp : 1;
+
 
   return (
     <>
@@ -260,7 +344,7 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
                             {isUploadingAvatar ? <Spinner variant='button' /> : <CameraIcon className="w-8 h-8"/>}
                         </button>
                     </div>
-                    <div className="flex-1">
+                    <div className="flex-1 w-full">
                         <div className="flex flex-col sm:flex-row justify-between items-center">
                             <h1 className="font-serif text-3xl font-bold text-verde-mata dark:text-dourado-suave">{user.fullName}</h1>
                             <Button onClick={handleOpenEditModal} variant="secondary" className="mt-2 sm:mt-0 !py-2 !px-4">
@@ -280,34 +364,54 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
                         </div>
                     </div>
                 </div>
-                 <div className="mt-6 pt-4 border-t border-marrom-seiva/10 dark:border-creme-velado/10">
-                    <div className="flex justify-between items-center font-sans text-sm font-semibold text-marrom-seiva/80 dark:text-creme-velado/80">
-                        <span>Nível: {user.level}</span>
-                        <span>{user.points} / {userLevelInfo.points} pts</span>
+                
+                {/* Garden Summary Section */}
+                 <div className="mt-8 pt-6 border-t border-marrom-seiva/10 dark:border-creme-velado/10">
+                    <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                            <SparklesIcon className="w-5 h-5 text-dourado-suave" />
+                            <h3 className="font-serif font-bold text-verde-mata dark:text-dourado-suave">Meu Jardim Secreto</h3>
+                        </div>
+                        <button onClick={() => onNavigate('myGarden')} className="text-sm font-semibold text-dourado-suave hover:underline">Ver completo</button>
                     </div>
-                    <div className="mt-2">
-                        <ProgressBar current={user.points} max={userLevelInfo.points} />
+                    <div className="bg-creme-velado/50 dark:bg-verde-escuro-profundo/50 p-4 rounded-lg">
+                         <div className="flex justify-between items-center font-sans text-sm font-semibold text-marrom-seiva/80 dark:text-creme-velado/80 mb-2">
+                            <span>{user.gardenLevelName || "Semente Plantada"}</span>
+                            <span>{user.experience || 0} XP</span>
+                        </div>
+                        <ProgressBar current={nextLevel ? currentProgress : 100} max={nextLevel ? progressToNext : 100} />
+                         <div className="flex justify-between text-xs text-marrom-seiva/60 dark:text-creme-velado/60 mt-2">
+                             <span>{user.currentStreak || 0} dias seguidos de orvalho</span>
+                             <span>{user.unlockedAchievementIds?.length || 0} sementes plantadas</span>
+                         </div>
                     </div>
                 </div>
             </div>
 
             <main>
-                <div className="border-b border-marrom-seiva/20 dark:border-creme-velado/20 mb-6">
-                    <nav className="-mb-px flex space-x-6 overflow-x-auto scrollbar-hide">
-                        <button onClick={() => setActiveTab('meus')} className={`flex items-center gap-2 whitespace-nowrap py-3 px-1 border-b-2 font-sans font-semibold text-base ${activeTab === 'meus' ? 'border-dourado-suave text-dourado-suave' : 'border-transparent text-marrom-seiva/70 dark:text-creme-velado/70'}`}>
-                            <UserCircleIcon className="w-5 h-5" /> Meus Testemunhos
+                {/* Navigation Chips/Pills - Scrollable */}
+                <div className="relative group mb-8">
+                    {/* Fade effect on the right to indicate scrollability */}
+                    <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-creme-velado dark:from-verde-escuro-profundo to-transparent pointer-events-none md:hidden z-10"></div>
+                    
+                    <nav className="flex space-x-3 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
+                        <button onClick={() => setActiveTab('meus')} className={`flex-shrink-0 flex items-center gap-2 whitespace-nowrap py-2 px-5 rounded-full font-sans font-semibold text-sm transition-all duration-200 ${activeTab === 'meus' ? 'bg-dourado-suave text-verde-mata shadow-md' : 'bg-branco-nevoa dark:bg-verde-mata/50 text-marrom-seiva/70 dark:text-creme-velado/70 hover:bg-dourado-suave/20'}`}>
+                            <UserCircleIcon className="w-4 h-4" /> Meus Testemunhos
                         </button>
-                            <button onClick={() => setActiveTab('oracoes')} className={`flex items-center gap-2 whitespace-nowrap py-3 px-1 border-b-2 font-sans font-semibold text-base ${activeTab === 'oracoes' ? 'border-dourado-suave text-dourado-suave' : 'border-transparent text-marrom-seiva/70 dark:text-creme-velado/70'}`}>
-                            <PrayingHandsIcon className="w-5 h-5" /> Meus Pedidos
+                        <button onClick={() => setActiveTab('oracoes')} className={`flex-shrink-0 flex items-center gap-2 whitespace-nowrap py-2 px-5 rounded-full font-sans font-semibold text-sm transition-all duration-200 ${activeTab === 'oracoes' ? 'bg-dourado-suave text-verde-mata shadow-md' : 'bg-branco-nevoa dark:bg-verde-mata/50 text-marrom-seiva/70 dark:text-creme-velado/70 hover:bg-dourado-suave/20'}`}>
+                            <PrayingHandsIcon className="w-4 h-4" /> Meus Pedidos
                         </button>
-                        <button onClick={() => setActiveTab('salvos')} className={`flex items-center gap-2 whitespace-nowrap py-3 px-1 border-b-2 font-sans font-semibold text-base ${activeTab === 'salvos' ? 'border-dourado-suave text-dourado-suave' : 'border-transparent text-marrom-seiva/70 dark:text-creme-velado/70'}`}>
-                            <BookmarkIcon className="w-5 h-5" /> Testemunhos Salvos
+                        <button onClick={() => setActiveTab('salvos')} className={`flex-shrink-0 flex items-center gap-2 whitespace-nowrap py-2 px-5 rounded-full font-sans font-semibold text-sm transition-all duration-200 ${activeTab === 'salvos' ? 'bg-dourado-suave text-verde-mata shadow-md' : 'bg-branco-nevoa dark:bg-verde-mata/50 text-marrom-seiva/70 dark:text-creme-velado/70 hover:bg-dourado-suave/20'}`}>
+                            <BookmarkIcon className="w-4 h-4" /> Salvos
                         </button>
-                        <button onClick={() => setActiveTab('eventos')} className={`flex items-center gap-2 whitespace-nowrap py-3 px-1 border-b-2 font-sans font-semibold text-base ${activeTab === 'eventos' ? 'border-dourado-suave text-dourado-suave' : 'border-transparent text-marrom-seiva/70 dark:text-creme-velado/70'}`}>
-                            <CalendarDaysIcon className="w-5 h-5" /> Meus Eventos
+                        <button onClick={() => setActiveTab('eventos')} className={`flex-shrink-0 flex items-center gap-2 whitespace-nowrap py-2 px-5 rounded-full font-sans font-semibold text-sm transition-all duration-200 ${activeTab === 'eventos' ? 'bg-dourado-suave text-verde-mata shadow-md' : 'bg-branco-nevoa dark:bg-verde-mata/50 text-marrom-seiva/70 dark:text-creme-velado/70 hover:bg-dourado-suave/20'}`}>
+                            <CalendarDaysIcon className="w-4 h-4" /> Eventos
                         </button>
-                            <button onClick={() => setActiveTab('notificacoes')} className={`flex items-center gap-2 whitespace-nowrap py-3 px-1 border-b-2 font-sans font-semibold text-base ${activeTab === 'notificacoes' ? 'border-dourado-suave text-dourado-suave' : 'border-transparent text-marrom-seiva/70 dark:text-creme-velado/70'}`}>
-                            <BellIcon className="w-5 h-5" /> Notificações
+                        <button onClick={() => setActiveTab('notificacoes')} className={`flex-shrink-0 flex items-center gap-2 whitespace-nowrap py-2 px-5 rounded-full font-sans font-semibold text-sm transition-all duration-200 ${activeTab === 'notificacoes' ? 'bg-dourado-suave text-verde-mata shadow-md' : 'bg-branco-nevoa dark:bg-verde-mata/50 text-marrom-seiva/70 dark:text-creme-velado/70 hover:bg-dourado-suave/20'}`}>
+                            <BellIcon className="w-4 h-4" /> Notificações
+                        </button>
+                        <button onClick={() => setActiveTab('configuracoes')} className={`flex-shrink-0 flex items-center gap-2 whitespace-nowrap py-2 px-5 rounded-full font-sans font-semibold text-sm transition-all duration-200 ${activeTab === 'configuracoes' ? 'bg-dourado-suave text-verde-mata shadow-md' : 'bg-branco-nevoa dark:bg-verde-mata/50 text-marrom-seiva/70 dark:text-creme-velado/70 hover:bg-dourado-suave/20'}`}>
+                            <Cog8ToothIcon className="w-4 h-4" /> Configurações
                         </button>
                     </nav>
                 </div>
@@ -316,7 +420,7 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
                 
                 {!isLoadingData && activeTab === 'meus' && (
                     myTestimonials.length > 0 ?
-                    <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                         {myTestimonials.map(post => <ProfilePostCard key={post.id} post={post} onCardClick={() => onViewTestimonial(post.id)} />)}
                     </div> :
                     <p className="text-center p-8 text-marrom-seiva/70 dark:text-creme-velado/70">Você ainda não publicou nenhum testemunho.</p>
@@ -332,7 +436,7 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
 
                 {!isLoadingData && activeTab === 'salvos' && (
                     savedTestimonials.length > 0 ?
-                        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                         {savedTestimonials.map(post => <ProfilePostCard key={post.id} post={post} onCardClick={() => onViewTestimonial(post.id)} />)}
                     </div> :
                     <p className="text-center p-8 text-marrom-seiva/70 dark:text-creme-velado/70">Você ainda não salvou nenhum testemunho.</p>
@@ -340,7 +444,7 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
                 
                 {!isLoadingData && activeTab === 'eventos' && (
                     myEvents.length > 0 ?
-                    <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                         {myEvents.map(event => <EventCard key={event.id} event={event} onCardClick={() => onNavigate('eventDetail', event.id)} />)}
                     </div> :
                     <p className="text-center p-8 text-marrom-seiva/70 dark:text-creme-velado/70">Você ainda não se inscreveu em nenhum evento.</p>
@@ -353,6 +457,73 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
                         ) : (
                             <p className="text-center p-8 text-marrom-seiva/70 dark:text-creme-velado/70">Nenhuma notificação por aqui.</p>
                         )}
+                    </div>
+                )}
+                
+                {!isLoadingData && activeTab === 'configuracoes' && (
+                    <div className="space-y-6">
+                        <div className="bg-branco-nevoa dark:bg-verde-mata rounded-xl shadow-lg p-6">
+                            <h3 className="font-serif text-xl font-semibold text-verde-mata dark:text-dourado-suave mb-4">Notificações Push</h3>
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="font-sans font-semibold text-verde-mata dark:text-creme-velado">Receber notificações no dispositivo</p>
+                                    <p className="font-sans text-sm text-marrom-seiva/80 dark:text-creme-velado/80">Ative para receber alertas importantes.</p>
+                                </div>
+                                <label htmlFor="pushToggle" className="flex items-center cursor-pointer">
+                                    <div className="relative">
+                                        <input type="checkbox" id="pushToggle" className="sr-only" checked={isPushEnabled} onChange={handlePushToggle} disabled={isPushLoading} />
+                                        <div className="block bg-marrom-seiva/20 dark:bg-creme-velado/20 w-14 h-8 rounded-full"></div>
+                                        <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${isPushEnabled ? 'translate-x-6 bg-dourado-suave' : ''}`}></div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div className="bg-branco-nevoa dark:bg-verde-mata rounded-xl shadow-lg p-6">
+                            <h3 className="font-serif text-xl font-semibold text-verde-mata dark:text-dourado-suave mb-4">Preferências de Notificação</h3>
+                            <div className="space-y-4">
+                                {[
+                                    { key: 'newDevotionals', label: 'Novos Devocionais' },
+                                    { key: 'newPrayerRequests', label: 'Novos Pedidos de Oração' },
+                                    { key: 'newStudies', label: 'Novos Estudos' },
+                                    { key: 'newMentorships', label: 'Novas Mentorias' },
+                                    { key: 'newTestimonials', label: 'Novos Testemunhos' },
+                                    { key: 'newReadingPlans', label: 'Novos Planos de Leitura' },
+                                    { key: 'newEvents', label: 'Novos Eventos' },
+                                    { key: 'newLives', label: 'Novas Lives' },
+                                    { key: 'newPodcasts', label: 'Novos Podcasts' },
+                                    { key: 'commentsOnMyPost', label: 'Comentários em meus posts' },
+                                ].map((setting) => (
+                                    <div key={setting.key} className="flex items-center justify-between">
+                                        <span className="font-sans text-marrom-seiva/80 dark:text-creme-velado/80">{setting.label}</span>
+                                        <label className="flex items-center cursor-pointer">
+                                            <div className="relative">
+                                                <input 
+                                                    type="checkbox" 
+                                                    className="sr-only" 
+                                                    checked={user.notificationSettings?.[setting.key as keyof UserNotificationSettings] ?? true} 
+                                                    onChange={() => handleToggleNotificationSetting(setting.key as keyof UserNotificationSettings)} 
+                                                />
+                                                <div className="block bg-marrom-seiva/20 dark:bg-creme-velado/20 w-10 h-6 rounded-full"></div>
+                                                <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${(user.notificationSettings?.[setting.key as keyof UserNotificationSettings] ?? true) ? 'translate-x-4 bg-dourado-suave' : ''}`}></div>
+                                            </div>
+                                        </label>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        
+                        <div className="bg-branco-nevoa dark:bg-verde-mata rounded-xl shadow-lg p-6">
+                            <h3 className="font-serif text-xl font-semibold text-verde-mata dark:text-dourado-suave mb-4">Gerenciamento de Cache</h3>
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="font-sans font-semibold text-verde-mata dark:text-creme-velado">Limpar dados do aplicativo</p>
+                                    <p className="font-sans text-sm text-marrom-seiva/80 dark:text-creme-velado/80">Isso remove dados em cache e pode resolver problemas de exibição.</p>
+                                </div>
+                                <Button variant="secondary" onClick={() => setIsCacheClearConfirmOpen(true)}>Esvaziar Cache</Button>
+                            </div>
+                        </div>
+
                     </div>
                 )}
             </main>
@@ -404,6 +575,16 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
             confirmText="Excluir"
         />
     )}
+    
+    <ConfirmationModal
+        isOpen={isCacheClearConfirmOpen}
+        onClose={() => setIsCacheClearConfirmOpen(false)}
+        onConfirm={handleClearCache}
+        title="Esvaziar Cache do Aplicativo"
+        message="Isso removerá todos os dados salvos offline (cache) e recarregará o aplicativo com os dados mais recentes. Deseja continuar?"
+        confirmText="Sim, esvaziar"
+        isLoading={isClearingCache}
+    />
     </>
   );
 }

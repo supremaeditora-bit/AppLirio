@@ -114,7 +114,7 @@ export default function ContentForm({ isOpen, onClose, item, user, defaultType }
         };
         
         mediaRecorderRef.current.onstop = () => {
-            const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/mpeg' });
+            const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorderRef.current!.mimeType });
             const audioUrl = URL.createObjectURL(audioBlob);
             setRecordedAudioUrl(audioUrl);
             setRecordedBlob(audioBlob);
@@ -171,8 +171,17 @@ export default function ContentForm({ isOpen, onClose, item, user, defaultType }
             await createContentItem(dataToSave as Omit<ContentItem, 'id' | 'createdAt' | 'comments' | 'reactions'>);
         }
         onClose();
-    } catch (error) {
+    } catch (error: any) {
         console.error("Failed to save content", error);
+        let errorMessage = "Falha ao salvar o conteúdo. Tente novamente.";
+        if (error.message) {
+            if (error.message.includes("violates row-level security policy")) {
+                errorMessage = "Falha ao salvar: Permissão negada. Verifique se sua conta tem a permissão ('admin' ou 'mentora') e se as regras de segurança (RLS) da tabela 'content' estão corretas.";
+            } else {
+                errorMessage = `Falha ao salvar o conteúdo: ${error.message}`;
+            }
+        }
+        alert(errorMessage);
     } finally {
         setIsLoading(false);
     }

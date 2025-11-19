@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { onAuthUserChanged } from './services/authService';
 import { getLiveSessions, getAnnouncements, getAppearanceSettings } from './services/api';
-import { Page, User, Announcement, AppearanceSettings } from './types';
+import { Page, User, Announcement, AppearanceSettings, ThemeColors } from './types';
 
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -37,6 +37,9 @@ const MyGarden = lazy(() => import('./pages/MyGarden'));
 const Journal = lazy(() => import('./pages/Journal'));
 
 const hexToRgb = (hex: string): string => {
+  if (hex === 'transparent') {
+    return '255 255 255'; // Return a fallback; the CSS override will make it transparent.
+  }
   if (!hex || !hex.startsWith('#')) return '0 0 0';
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   return result ? `${parseInt(result[1], 16)} ${parseInt(result[2], 16)} ${parseInt(result[3], 16)}` : '0 0 0';
@@ -102,11 +105,64 @@ export default function App() {
             --color-marrom-seiva: ${hexToRgb(settings.themeColors.lightText)};
             --color-verde-mata: ${hexToRgb(settings.themeColors.darkComponentBg)};
             --color-verde-escuro-profundo: ${hexToRgb(settings.themeColors.darkBg)};
-            --color-dourado-suave: ${hexToRgb(settings.themeColors.accent)};
+            --color-dourado-suave: ${hexToRgb(settings.themeColors.lightAccent)};
+            --color-btn-bg: ${hexToRgb(settings.themeColors.lightButtonBg || '#C0A063')};
+            --color-btn-text: ${hexToRgb(settings.themeColors.lightButtonText || '#2C3E2A')};
+          }
+          .dark {
+            --color-dourado-suave: ${hexToRgb(settings.themeColors.darkAccent)};
+            --color-btn-bg: ${hexToRgb(settings.themeColors.darkButtonBg || '#D9C7A6')};
+            --color-btn-text: ${hexToRgb(settings.themeColors.darkButtonText || '#2C3E2A')};
           }
         `;
       }
+      
+      const overridesTag = document.getElementById('dynamic-theme-overrides') || document.createElement('style');
+      overridesTag.id = 'dynamic-theme-overrides';
+
+      let overridesCSS = '';
+
+      const colorMap = new Map<keyof ThemeColors, string[]>([
+        ['lightBg', ['body', '.bg-creme-velado']],
+        ['lightComponentBg', ['.bg-branco-nevoa']],
+        ['darkComponentBg', ['.dark .dark\\:bg-verde-mata']],
+        ['darkBg', ['.dark body', '.dark .dark\\:bg-verde-escuro-profundo']],
+      ]);
+
+      for (const [key, selectors] of colorMap.entries()) {
+        if (settings.themeColors[key] === 'transparent') {
+          overridesCSS += `${selectors.join(', ')} { background-color: transparent !important; }\n`;
+        }
+      }
+      
+      // Global Background Images (Light/Dark)
+      if (settings.useBackgroundImage) {
+          if (settings.backgroundImageUrlLight) {
+              overridesCSS += `html:not(.dark) body { background-image: url('${settings.backgroundImageUrlLight}'); background-size: cover; background-position: center; background-attachment: fixed; }\n`;
+          }
+          if (settings.backgroundImageUrlDark) {
+              overridesCSS += `html.dark body { background-image: url('${settings.backgroundImageUrlDark}'); background-size: cover; background-position: center; background-attachment: fixed; }\n`;
+          }
+      } else {
+           overridesCSS += `body { background-image: none; }\n`;
+      }
+
+      // Component Background Images (Light/Dark)
+      if (settings.componentBackgroundImageUrlLight) {
+           overridesCSS += `html:not(.dark) .bg-branco-nevoa { background-image: url('${settings.componentBackgroundImageUrlLight}'); background-size: cover; background-position: center; }\n`;
+      }
+      if (settings.componentBackgroundImageUrlDark) {
+           overridesCSS += `html.dark .dark\\:bg-verde-mata { background-image: url('${settings.componentBackgroundImageUrlDark}'); background-size: cover; background-position: center; }\n`;
+      }
+      
+      overridesTag.innerHTML = overridesCSS;
+      if (overridesCSS) {
+        document.head.appendChild(overridesTag);
+      } else if (overridesTag.parentNode) {
+        overridesTag.parentNode.removeChild(overridesTag);
+      }
     }
+    
     if (settings.fontSettings) {
       const fontStyleTag = document.getElementById('dynamic-font-vars');
       if (fontStyleTag) {
@@ -117,14 +173,6 @@ export default function App() {
           }
           `;
       }
-    }
-    if (settings.useBackgroundImage && settings.backgroundImageUrl) {
-      document.body.style.backgroundImage = `url(${settings.backgroundImageUrl})`;
-      document.body.style.backgroundSize = 'cover';
-      document.body.style.backgroundPosition = 'center';
-      document.body.style.backgroundAttachment = 'fixed';
-    } else {
-      document.body.style.backgroundImage = '';
     }
   }, []);
 
@@ -217,7 +265,7 @@ export default function App() {
     }
 
     switch (currentPage) {
-      case 'home': return <Home onNavigate={handleNavigate} user={user} onViewDetail={handleViewDetail} />;
+      case 'home': return <Home onNavigate={handleNavigate} user={user} onViewDetail={handleViewDetail} onUserUpdate={handleUserUpdate} />;
       case 'profile': return <Profile user={user} onUserUpdate={handleUserUpdate} onNavigate={handleNavigate} onViewTestimonial={handleViewTestimonial} />;
       case 'devotionals': return <Devotionals onViewDetail={handleViewDetail} user={user} onUserUpdate={handleUserUpdate} />;
       case 'studies': return <Studies user={user} onUserUpdate={handleUserUpdate} setHasNotifications={() => {}} />;
@@ -227,8 +275,8 @@ export default function App() {
       case 'challenges': return <Challenges user={user} onUserUpdate={handleUserUpdate} />;
       case 'mentorships': return <Mentorships onViewDetail={handleViewDetail} user={user} />;
       case 'myGarden': return <MyGarden user={user} />;
-      case 'journal': return <Journal user={user} onNavigate={handleNavigate} />;
-      case 'contentDetail': return detailId ? <ContentDetail id={detailId} user={user} onUserUpdate={handleUserUpdate} /> : null;
+      case 'journal': return <Journal user={user} onNavigate={handleNavigate} onUserUpdate={handleUserUpdate} />;
+      case 'contentDetail': return detailId ? <ContentDetail id={detailId} user={user} onNavigate={handleNavigate} onUserUpdate={handleUserUpdate} /> : null;
       case 'testimonials': return <Testimonials onViewTestimonial={handleViewTestimonial} onNavigate={handleNavigate} user={user} />;
       case 'testimonialDetail': return detailId ? <TestimonialDetail id={detailId} user={user} onNavigate={handleNavigate} /> : null;
       case 'publishTestimonial': return <PublishTestimonial user={user} onNavigate={handleNavigate} onUserUpdate={handleUserUpdate} />;
@@ -236,8 +284,8 @@ export default function App() {
       case 'planDetail': return detailId ? <PlanDetail id={detailId} user={user} onNavigate={handleNavigate} /> : null;
       case 'events': return <Events user={user} onNavigate={handleNavigate} />;
       case 'eventDetail': return eventDetailId ? <EventDetail id={eventDetailId} user={user} onNavigate={handleNavigate} /> : null;
-      case 'admin': return user.role === 'admin' ? <Admin user={user} /> : <Home onNavigate={handleNavigate} user={user} onViewDetail={handleViewDetail} />;
-      default: return <Home onNavigate={handleNavigate} user={user} onViewDetail={handleViewDetail} />;
+      case 'admin': return user.role === 'admin' ? <Admin user={user} /> : <Home onNavigate={handleNavigate} user={user} onViewDetail={handleViewDetail} onUserUpdate={handleUserUpdate} />;
+      default: return <Home onNavigate={handleNavigate} user={user} onViewDetail={handleViewDetail} onUserUpdate={handleUserUpdate} />;
     }
   };
 
@@ -254,7 +302,7 @@ export default function App() {
   }
 
   return (
-    <div className="relative h-screen bg-creme-velado dark:bg-verde-escuro-profundo text-marrom-seiva dark:text-creme-velado">
+    <div className="relative h-full bg-creme-velado dark:bg-verde-escuro-profundo text-marrom-seiva dark:text-creme-velado">
       <Sidebar 
         isMobileOpen={isMobileSidebarOpen}
         onMobileClose={() => setMobileSidebarOpen(false)}
@@ -264,9 +312,12 @@ export default function App() {
         user={user}
         currentPage={currentPage}
         isLiveActive={isLiveActive}
-        logoUrl={appearanceSettings?.logoUrl}
+        logoLightUrl={appearanceSettings?.logoSettings?.logoLightUrl}
+        logoDarkUrl={appearanceSettings?.logoSettings?.logoDarkUrl}
+        siteTitle={appearanceSettings?.logoSettings?.siteTitle}
+        logoDisplayMode={appearanceSettings?.logoSettings?.logoDisplayMode}
       />
-      <div className={`flex-1 flex flex-col h-full overflow-hidden transition-all duration-300 ease-in-out md:pl-64 ${isDesktopSidebarCollapsed ? 'md:!pl-20' : ''}`}>
+      <div className={`flex flex-col h-full transition-[padding-left] duration-300 ease-in-out md:pl-64 ${isDesktopSidebarCollapsed ? 'md:!pl-20' : ''}`}>
         <Header 
           onToggleMobileSidebar={() => setMobileSidebarOpen(!isMobileSidebarOpen)}
           user={user} 
@@ -297,8 +348,8 @@ export default function App() {
 const style = document.createElement('style');
 style.innerHTML = `
   @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
   .animate-fade-in {
     animation: fadeIn 0.5s ease-out forwards;

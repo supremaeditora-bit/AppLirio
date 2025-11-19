@@ -78,7 +78,7 @@ export default function LiveForm({ isOpen, onClose, session, user }: LiveFormPro
       <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
         <InputField id="title" label="Título" value={formData.title || ''} onChange={handleChange} required />
         <InputField id="description" label="Descrição" type="textarea" value={formData.description || ''} onChange={handleChange} required />
-        <InputField id="youtubeId" label="ID do Vídeo do YouTube" placeholder="Ex: L_LUpnjgPso" value={formData.youtubeId || ''} onChange={handleChange} required />
+        <InputField id="youtubeId" label="ID ou URL do Vídeo do YouTube" placeholder="Ex: L_LUpnjgPso ou https://youtu.be/..." value={formData.youtubeId || ''} onChange={handleChange} required />
         <InputField id="scheduledAt" label="Data e Hora" type="datetime-local" value={formData.scheduledAt || ''} onChange={handleChange} required />
 
         <div>

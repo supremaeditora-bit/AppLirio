@@ -27,7 +27,7 @@ export default function SearchAndFilter({
           placeholder={searchPlaceholder}
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="w-full pl-12 pr-4 py-3 bg-branco-nevoa dark:bg-verde-mata rounded-full font-sans text-sm focus:outline-none focus:ring-2 focus:ring-dourado-suave border border-transparent"
+          className="w-full pl-12 pr-4 py-3 bg-branco-nevoa dark:bg-verde-mata rounded-full font-sans text-sm focus:outline-none focus:ring-2 focus:ring-dourado-suave border border-transparent placeholder:text-[#7A6C59] dark:placeholder:text-creme-velado/60"
         />
       </div>
       <div className="flex-shrink-0">

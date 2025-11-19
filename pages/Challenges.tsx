@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Challenge, User, UserChallengeCompletion } from '../types';
 import { getChallenges, getUserChallengeCompletions, completeChallenge } from '../services/api';
@@ -18,10 +19,6 @@ const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, isCompleted, o
       <div>
         <div className="flex justify-between items-start">
             <h2 className="font-serif text-xl font-bold text-verde-mata dark:text-dourado-suave">{challenge.title}</h2>
-            <div className="text-right flex-shrink-0 ml-4">
-                <p className="font-bold text-lg text-dourado-suave">+{challenge.points}</p>
-                <p className="text-xs text-marrom-seiva/70 dark:text-creme-velado/70">pontos</p>
-            </div>
         </div>
         <p className="font-sans text-marrom-seiva/80 dark:text-creme-velado/80 mt-2 text-sm leading-relaxed">
             {challenge.description}
@@ -74,10 +71,9 @@ export default function Challenges({ user, onUserUpdate }: ChallengesProps) {
     if (!user) return;
     setCompletingId(challenge.id);
     try {
-        await completeChallenge(user.id, challenge.id, challenge.points);
+        await completeChallenge(user.id, challenge.id);
         // Optimistic update
         setCompletions([...completions, { id: '', userId: user.id, challengeId: challenge.id, completedAt: new Date().toISOString() }]);
-        onUserUpdate({ points: user.points + challenge.points });
     } catch (error) {
         console.error("Failed to complete challenge", error);
     } finally {
@@ -85,9 +81,8 @@ export default function Challenges({ user, onUserUpdate }: ChallengesProps) {
     }
   };
 
-  // Fix: Explicitly type the accumulator and initial value of the reduce function
-  // to ensure TypeScript correctly infers the type of `groupedChallenges`.
-  const groupedChallenges = challenges.reduce((acc: Record<string, Challenge[]>, challenge) => {
+  // FIX: Explicitly type the initial value to ensure correct inference.
+  const groupedChallenges = challenges.reduce((acc, challenge) => {
     const theme = challenge.theme || 'Desafios Gerais';
     if (!acc[theme]) {
       acc[theme] = [];
@@ -108,12 +103,12 @@ export default function Challenges({ user, onUserUpdate }: ChallengesProps) {
       <div className="text-center mb-12">
         <h1 className="font-serif text-4xl sm:text-5xl font-bold text-verde-mata dark:text-dourado-suave">Desafios de Fé</h1>
         <p className="font-sans text-lg text-marrom-seiva/80 dark:text-creme-velado/80 mt-2 max-w-2xl mx-auto">
-            Participe dos desafios, cresça na sua jornada e ganhe pontos para avançar de nível!
+            Participe dos desafios e cresça na sua jornada!
         </p>
       </div>
 
       <div className="space-y-12">
-        {Object.entries(groupedChallenges).map(([theme, themeChallenges]) => (
+        {Object.entries(groupedChallenges).map(([theme, themeChallenges]: [string, Challenge[]]) => (
             <section key={theme}>
                 <h2 className="font-serif text-3xl font-semibold mb-6 text-verde-mata dark:text-dourado-suave">{theme}</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">

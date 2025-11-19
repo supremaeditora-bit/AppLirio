@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Page } from '../types';
 import { BookOpenIcon, UsersIcon, ChartPieIcon, AcademicCapIcon } from '../components/Icons';
@@ -8,11 +7,10 @@ interface LandingPageProps {
   onNavigate: (page: Page) => void;
 }
 
-// FIX: Specified the props type for the `icon` React.ReactElement to allow passing `className`.
-const Feature: React.FC<{ icon: React.ReactElement<{ className?: string }>; title: string; children: React.ReactNode }> = ({ icon, title, children }) => (
+const Feature: React.FC<{ icon: React.ElementType; title: string; children: React.ReactNode }> = ({ icon: IconComponent, title, children }) => (
     <div className="text-center p-6 bg-creme-velado dark:bg-verde-escuro-profundo rounded-xl shadow-lg transition-transform hover:scale-105">
         <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-dourado-suave/20 rounded-full text-dourado-suave">
-            {React.cloneElement(icon, { className: 'w-8 h-8' })}
+            <IconComponent className="w-8 h-8" />
         </div>
         <h4 className="font-serif text-xl font-bold text-verde-mata dark:text-dourado-suave">{title}</h4>
         <p className="mt-2 font-sans text-marrom-seiva/80 dark:text-creme-velado/80">{children}</p>
@@ -70,16 +68,16 @@ export default function LandingPage({ onNavigate }: LandingPageProps) {
             <div className="container mx-auto max-w-5xl">
                 <h3 className="font-serif text-4xl font-bold text-center text-verde-mata dark:text-dourado-suave mb-12">Um Oásis para sua Alma</h3>
                 <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-                    <Feature icon={<BookOpenIcon />} title="Devocionais Diários">
+                    <Feature icon={BookOpenIcon} title="Devocionais Diários">
                         Comece seu dia com reflexões inspiradoras para fortalecer seu espírito.
                     </Feature>
-                    <Feature icon={<ChartPieIcon />} title="Mentorias Guiadas">
+                    <Feature icon={ChartPieIcon} title="Mentorias Guiadas">
                         Cursos e conteúdos práticos para guiar sua jornada em diversas áreas da vida.
                     </Feature>
-                     <Feature icon={<UsersIcon />} title="Comunidade de Fé">
+                     <Feature icon={UsersIcon} title="Comunidade de Fé">
                         Um espaço seguro para compartilhar testemunhos, pedir orações e estudar a Palavra.
                     </Feature>
-                    <Feature icon={<AcademicCapIcon />} title="Planos de Leitura">
+                    <Feature icon={AcademicCapIcon} title="Planos de Leitura">
                         Aprofunde seu conhecimento bíblico com planos de estudo estruturados e guiados.
                     </Feature>
                 </div>

@@ -1,16 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Announcement } from '../../types';
-import { getAllAnnouncementsForAdmin, createAnnouncement, updateAnnouncement } from '../../services/api';
+import { getAllAnnouncementsForAdmin, createAnnouncement, updateAnnouncement, deleteAnnouncement } from '../../services/api';
 import Spinner from '../Spinner';
 import Button from '../Button';
 import InputField from '../InputField';
-import { PlusIcon } from '../Icons';
+import { PlusIcon, TrashIcon } from '../Icons';
+import ConfirmationModal from '../ConfirmationModal';
 
 export default function AnnouncementManager() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState<Partial<Announcement> | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [announcementToDelete, setAnnouncementToDelete] = useState<Announcement | null>(null);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+
 
   const fetchAnnouncements = async () => {
     setIsLoading(true);
@@ -40,6 +44,20 @@ export default function AnnouncementManager() {
       await updateAnnouncement(ann.id, { isActive: !ann.isActive });
       fetchAnnouncements();
   }
+  
+  const handleOpenConfirm = (ann: Announcement) => {
+    setAnnouncementToDelete(ann);
+    setIsConfirmOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (announcementToDelete) {
+      await deleteAnnouncement(announcementToDelete.id);
+      setIsConfirmOpen(false);
+      setAnnouncementToDelete(null);
+      fetchAnnouncements();
+    }
+  };
 
   if (isLoading) {
     return <div className="flex justify-center py-10"><Spinner /></div>;
@@ -70,12 +88,12 @@ export default function AnnouncementManager() {
 
         <div className="bg-branco-nevoa dark:bg-verde-mata p-6 rounded-xl shadow-lg space-y-3">
         {announcements.map(ann => (
-            <div key={ann.id} className="p-3 border border-marrom-seiva/10 dark:border-creme-velado/10 rounded-lg flex justify-between items-center">
+            <div key={ann.id} className="p-3 border border-marrom-seiva/10 dark:border-creme-velado/10 rounded-lg flex justify-between items-center gap-4">
                 <div>
                     <p className={`font-semibold ${ann.isActive ? 'text-verde-mata dark:text-creme-velado' : 'text-marrom-seiva/50 dark:text-creme-velado/50'}`}>{ann.message}</p>
                     <p className="text-xs text-marrom-seiva/60 dark:text-creme-velado/60">{ann.ctaText && ann.ctaLink ? `${ann.ctaText} -> ${ann.ctaLink}` : 'Sem link'}</p>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 flex-shrink-0">
                     <Button variant="secondary" className="!py-1 !px-3" onClick={() => setIsEditing(ann)}>Editar</Button>
                     <label className="flex items-center cursor-pointer">
                         <div className="relative">
@@ -84,11 +102,24 @@ export default function AnnouncementManager() {
                             <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${ann.isActive ? 'translate-x-4 bg-dourado-suave' : ''}`}></div>
                         </div>
                     </label>
+                    <button onClick={() => handleOpenConfirm(ann)} className="p-2 rounded-full hover:bg-red-500/10">
+                        <TrashIcon className="w-5 h-5 text-red-500"/>
+                    </button>
                 </div>
             </div>
         ))}
         </div>
 
+        {announcementToDelete && (
+            <ConfirmationModal
+                isOpen={isConfirmOpen}
+                onClose={() => setIsConfirmOpen(false)}
+                onConfirm={handleDelete}
+                title="Confirmar Exclusão"
+                message={`Tem certeza que deseja excluir o anúncio: "${announcementToDelete.message}"?`}
+                confirmText="Excluir"
+            />
+        )}
     </div>
   );
 }

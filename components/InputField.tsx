@@ -9,7 +9,7 @@ type InputFieldProps = {
 } & React.InputHTMLAttributes<HTMLInputElement | HTMLTextAreaElement>;
 
 export default function InputField({ label, id, type = 'text', error, ...props }: InputFieldProps) {
-  const commonClasses = "w-full font-sans bg-creme-velado dark:bg-verde-escuro-profundo border-2 border-marrom-seiva/20 dark:border-creme-velado/20 rounded-lg p-3 text-marrom-seiva dark:text-creme-velado focus:outline-none focus:ring-2 focus:ring-dourado-suave focus:border-dourado-suave transition-colors";
+  const commonClasses = "w-full font-sans bg-creme-velado dark:bg-verde-escuro-profundo border-2 border-marrom-seiva/20 dark:border-creme-velado/20 rounded-lg p-3 text-marrom-seiva dark:text-creme-velado focus:outline-none focus:ring-2 focus:ring-dourado-suave focus:border-dourado-suave transition-colors placeholder:text-[#7A6C59] dark:placeholder:text-creme-velado/60";
   
   const InputComponent = type === 'textarea' ? 'textarea' : 'input';
 

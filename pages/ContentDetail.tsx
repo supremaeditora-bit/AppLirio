@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { 
     getContentItem, 
@@ -11,23 +12,18 @@ import {
 } from '../services/api';
 import { ContentItem, User, GeneratedDevotional, Comment, Page } from '../types';
 import Spinner from '../components/Spinner';
-import { PlayIcon, CheckCircleIcon, HeartIcon, ChatBubbleIcon, PaperAirplaneIcon, TrashIcon, DownloadIcon } from '../components/Icons';
+import { PlayIcon, CheckCircleIcon, HeartIcon, ChatBubbleIcon, PaperAirplaneIcon, TrashIcon, DownloadIcon, ChevronLeftIcon } from '../components/Icons';
 import AudioPlayer from '../components/AudioPlayer';
 import VideoPlayer from '../components/VideoPlayer';
 import Button from '../components/Button';
 import ConfirmationModal from '../components/ConfirmationModal';
+import { processActivity } from '../services/gamificationService';
 
 interface ContentDetailProps {
   id: string;
   user: User | null;
   onUserUpdate: (updatedData: Partial<User>) => Promise<void>;
-}
-
-const extractYoutubeId = (url: string): string => {
-    if (!url) return '';
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-    const match = url.match(regExp);
-    return (match && match[2].length === 11) ? match[2] : '';
+  onNavigate: (page: Page) => void;
 }
 
 const formatDevotionalToContentBody = (devotional: GeneratedDevotional): string => {
@@ -46,7 +42,7 @@ const formatDevotionalToContentBody = (devotional: GeneratedDevotional): string 
 };
 
 
-export default function ContentDetail({ id, user, onUserUpdate }: ContentDetailProps) {
+export default function ContentDetail({ id, user, onUserUpdate, onNavigate }: ContentDetailProps) {
   const [item, setItem] = useState<ContentItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCompleted, setIsCompleted] = useState(false);
@@ -73,7 +69,7 @@ export default function ContentDetail({ id, user, onUserUpdate }: ContentDetailP
                 description: devotional.reflection.substring(0, 150) + '...',
                 imageUrl: 'https://images.unsplash.com/photo-1518495973542-4543?auto=format&fit=crop&w=1074&q=80',
                 contentBody: formatDevotionalToContentBody(devotional),
-                audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3', // Placeholder audio
+                audioUrl: devotional.audioUrl,
                 comments: [],
                 reactions: [],
             };
@@ -109,8 +105,14 @@ export default function ContentDetail({ id, user, onUserUpdate }: ContentDetailP
         setIsCompleted(false);
       } else {
         await markContentAsComplete(user.id, item.id);
+        
+        // Gamification
+        const activityType = item.type === 'Mentoria' ? 'trilha_concluida' : 'devocional_completo';
+        const gamificationUpdate = processActivity(user, activityType);
+        
         onUserUpdate({ 
-          completedContentIds: [...user.completedContentIds, item.id],
+            ...gamificationUpdate,
+            completedContentIds: [...user.completedContentIds, item.id],
         });
         setIsCompleted(true);
       }
@@ -136,6 +138,32 @@ export default function ContentDetail({ id, user, onUserUpdate }: ContentDetailP
     if (hours < 24) return `há ${hours}h`;
     const days = Math.round(hours / 24);
     return `há ${days}d`;
+  };
+
+  const handleBack = () => {
+      if (item) {
+          switch (item.type) {
+              case 'Devocional':
+                  onNavigate('devotionals');
+                  break;
+              case 'Live':
+                  onNavigate('lives');
+                  break;
+              case 'Podcast':
+                  onNavigate('podcasts');
+                  break;
+              case 'Estudo':
+                  onNavigate('studies');
+                  break;
+              case 'Mentoria':
+                  onNavigate('mentorships');
+                  break;
+              default:
+                  onNavigate('home');
+          }
+      } else {
+          onNavigate('home');
+      }
   };
 
   // --- INTERACTION HANDLERS ---
@@ -206,26 +234,41 @@ export default function ContentDetail({ id, user, onUserUpdate }: ContentDetailP
 
   return (
     <div className="relative">
-        <div className="h-[40vh] sm:h-[50vh] w-full relative">
-            <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover"/>
-            <div className="absolute inset-0 bg-gradient-to-t from-creme-velado via-creme-velado/70 to-transparent dark:from-verde-escuro-profundo dark:via-verde-escuro-profundo/70"></div>
+        {/* Top Navigation Back Button (Overlay) */}
+        <div className="absolute top-4 left-4 z-30">
+             <button 
+                onClick={handleBack} 
+                className="p-2 bg-white/20 hover:bg-white/30 backdrop-blur-md rounded-full text-white transition-all"
+            >
+                <ChevronLeftIcon className="w-6 h-6" />
+            </button>
         </div>
-        <div className="container mx-auto p-4 sm:p-8 -mt-24 relative z-10">
-            <div className="max-w-4xl mx-auto">
-                <span className="font-sans text-dourado-suave font-semibold tracking-wider">{item.type}</span>
-                <h1 className="font-serif text-4xl sm:text-5xl font-bold my-2 text-verde-mata dark:text-dourado-suave">
+
+        <div 
+            className="relative flex flex-col justify-end min-h-[50vh] sm:min-h-[60vh] w-full bg-cover bg-center" 
+            style={{backgroundImage: `url('${item.imageUrl}')`}}
+        >
+             <div className="absolute inset-0 bg-gradient-to-t from-[#D9C7A6] via-[#D9C7A6]/80 to-transparent dark:!from-verde-mata dark:!via-verde-mata/80 transition-colors duration-500"></div>
+             
+             <div className="relative z-10 p-6 sm:p-8 md:p-12 w-full max-w-5xl mx-auto">
+                <span className="font-sans font-semibold tracking-wider uppercase text-xs sm:text-sm text-marrom-seiva/80 dark:text-dourado-suave">{item.type}</span>
+                <h1 className="font-serif text-3xl sm:text-4xl md:text-5xl font-bold mt-2 leading-tight text-verde-mata dark:text-creme-velado">
                     {item.title}
                 </h1>
-                <p className="font-sans text-lg text-marrom-seiva/80 dark:text-creme-velado/80">{item.subtitle}</p>
+                <p className="font-sans text-lg text-marrom-seiva/70 dark:text-creme-velado/80 font-medium mt-1">{item.subtitle}</p>
+                
+                <p className="font-sans text-base leading-relaxed mt-4 text-marrom-seiva dark:text-creme-velado/90 max-w-2xl line-clamp-3 sm:line-clamp-none">
+                    {item.description}
+                </p>
 
-                <div className="flex flex-wrap items-center gap-4 my-8">
+                <div className="flex flex-wrap items-center gap-4 mt-6">
                     {hasStartableContent && (
-                        <button onClick={handleStart} className="flex items-center justify-center bg-dourado-suave text-verde-mata font-bold py-3 px-8 rounded-full text-lg hover:opacity-90 transition-all duration-200 transform hover:scale-105">
-                            <PlayIcon />
+                        <button onClick={handleStart} className="flex items-center justify-center bg-verde-mata text-dourado-suave dark:bg-dourado-suave dark:text-verde-mata font-bold py-3 px-8 rounded-full text-lg hover:opacity-90 transition-all duration-200 transform hover:scale-105 shadow-lg">
+                            <PlayIcon className="w-5 h-5 mr-2" />
                             <span>Iniciar</span>
                         </button>
                     )}
-                    <Button onClick={handleToggleComplete} variant={isCompleted ? 'secondary' : 'primary'} disabled={isUpdating}>
+                    <Button onClick={handleToggleComplete} variant={isCompleted ? 'secondary' : 'primary'} disabled={isUpdating} className="!bg-marrom-seiva/10 !text-marrom-seiva dark:!bg-creme-velado/10 dark:!text-creme-velado border border-marrom-seiva/10 dark:border-creme-velado/10">
                         <CheckCircleIcon className="w-5 h-5 mr-2" />
                         {isCompleted ? 'Concluído' : 'Marcar como Concluído'}
                     </Button>
@@ -238,13 +281,13 @@ export default function ContentDetail({ id, user, onUserUpdate }: ContentDetailP
                         </a>
                     )}
                 </div>
-
-                <div className="font-sans text-base leading-relaxed space-y-4 text-marrom-seiva dark:text-creme-velado/90">
-                    <p>{item.description}</p>
-                </div>
-
+             </div>
+        </div>
+        
+        <div className="container mx-auto p-4 sm:p-8">
+            <div className="max-w-4xl mx-auto">
                 {hasStartableContent && (
-                    <div ref={contentRef} className="mt-8 space-y-8">
+                    <div ref={contentRef} className="mt-4 space-y-8">
                         {item.contentBody && (
                             <div className="prose dark:prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: item.contentBody }} />
                         )}
@@ -254,7 +297,7 @@ export default function ContentDetail({ id, user, onUserUpdate }: ContentDetailP
                                 <h2 className="font-serif text-3xl font-bold text-verde-mata dark:text-dourado-suave mb-4">
                                     {item.type === 'Live' ? 'Assista a Gravação' : 'Assista à Aula'}
                                 </h2>
-                                <VideoPlayer youtubeId={extractYoutubeId(item.actionUrl)} />
+                                <VideoPlayer url={item.actionUrl} />
                             </div>
                         )}
 
@@ -285,7 +328,7 @@ export default function ContentDetail({ id, user, onUserUpdate }: ContentDetailP
                                 <form onSubmit={handleCommentSubmit} className="mb-6 flex items-start space-x-3">
                                     <img src={user.avatarUrl} alt={user.fullName} className="w-10 h-10 rounded-full object-cover"/>
                                     <div className="flex-1 relative">
-                                        <textarea placeholder="Deixe sua dúvida ou comentário..." value={commentText} onChange={(e) => setCommentText(e.target.value)} className="w-full font-sans bg-branco-nevoa dark:bg-verde-mata border-2 border-marrom-seiva/20 dark:border-creme-velado/20 rounded-xl p-3 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-dourado-suave" rows={3}/>
+                                        <textarea placeholder="Deixe sua dúvida ou comentário..." value={commentText} onChange={(e) => setCommentText(e.target.value)} className="w-full font-sans bg-branco-nevoa dark:bg-verde-mata border-2 border-marrom-seiva/20 dark:border-creme-velado/20 rounded-xl p-3 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-dourado-suave placeholder:text-[#7A6C59] dark:placeholder:text-creme-velado/60" rows={3}/>
                                         <button type="submit" className="absolute right-3 bottom-3 p-2 rounded-full text-dourado-suave hover:bg-dourado-suave/10 disabled:opacity-50" disabled={!commentText.trim()}><PaperAirplaneIcon className="w-5 h-5" /></button>
                                     </div>
                                 </form>
@@ -295,12 +338,12 @@ export default function ContentDetail({ id, user, onUserUpdate }: ContentDetailP
                                     const hasCommentReacted = user ? comment.reactions?.some(r => r.userId === user.id) : false;
                                     return (
                                         <div key={comment.id} className="group flex items-start space-x-3">
-                                            <img src={comment.author.avatarUrl} alt={comment.author.name} className="w-10 h-10 rounded-full object-cover" />
+                                            <img src={comment.author.avatarUrl} alt={comment.author.fullName} className="w-10 h-10 rounded-full object-cover" />
                                             <div className="flex-1 bg-branco-nevoa dark:bg-verde-mata p-4 rounded-xl">
                                                 <div className="flex justify-between items-start">
                                                     <div>
                                                         <p className="font-sans text-sm">
-                                                            <span className="font-bold text-verde-mata dark:text-creme-velado">{comment.author.name}</span>
+                                                            <span className="font-bold text-verde-mata dark:text-creme-velado">{comment.author.fullName}</span>
                                                             <span className="text-marrom-seiva/60 dark:text-creme-velado/60 ml-2">{formatTimeAgo(comment.createdAt)}</span>
                                                         </p>
                                                         <p className="font-sans text-sm text-marrom-seiva dark:text-creme-velado/90 mt-1">{comment.body}</p>

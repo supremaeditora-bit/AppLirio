@@ -1,6 +1,7 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 import { GeneratedDevotional, ReadingPlan } from '../types';
+import { uploadAudio } from './storageService';
 
 // As per guidelines, apiKey is from process.env.
 // The app should ensure process.env.API_KEY is available.
@@ -23,8 +24,8 @@ export async function generateGeminiContent(prompt: string): Promise<string> {
 
     // Extracting text directly from the response object as per guidelines.
     return response.text;
-  } catch (error) {
-    console.error("Error calling Gemini API:", error);
+  } catch (error: any) {
+    console.error("Error calling Gemini API:", error.message || error);
     // Provide a user-friendly error message.
     return "An error occurred while trying to get a response from the AI.";
   }
@@ -41,7 +42,7 @@ const devotionalThemes = [
   { theme: "o propósito do sofrimento", verse: "Romanos 5:3-5 (NVI)" },
 ];
 
-export async function generateDevotional(): Promise<GeneratedDevotional> {
+export async function generateDevotional(): Promise<GeneratedDevotional | null> {
     try {
         const randomTopic = devotionalThemes[Math.floor(Math.random() * devotionalThemes.length)];
         
@@ -85,23 +86,19 @@ export async function generateDevotional(): Promise<GeneratedDevotional> {
             },
         });
         
-        const jsonStr = response.text.trim();
+        let jsonStr = response.text.trim();
+        // The API can sometimes wrap the JSON in markdown, so we clean it up.
+        const jsonMatch = jsonStr.match(/```json\n([\s\S]*?)\n```/);
+        if (jsonMatch && jsonMatch[1]) {
+            jsonStr = jsonMatch[1];
+        }
         const devotional = JSON.parse(jsonStr) as GeneratedDevotional;
+        
         return devotional;
 
-    } catch (error) {
-        console.error("Error calling Gemini API for devotional:", error);
-        return {
-            title: "Erro ao Gerar Devocional",
-            verseReference: "Tente Novamente",
-            context: "Não foi possível conectar com a IA para gerar o devocional. Por favor, tente novamente mais tarde.",
-            reflection: "Ocasionalmente, a conexão pode falhar. Agradecemos sua paciência.",
-            application: [],
-            prayer: "",
-            weeklyChallenge: "",
-            journalPrompts: [],
-            keywords: ["erro"],
-        };
+    } catch (error: any) {
+        console.error("Error calling Gemini API for devotional:", error.message || error);
+        return null;
     }
 }
 
@@ -174,8 +171,8 @@ export async function generateReadingPlan(topic: string): Promise<Omit<ReadingPl
 
         return planData;
 
-    } catch (error) {
-        console.error("Error calling Gemini API for reading plan:", error);
+    } catch (error: any) {
+        console.error("Error calling Gemini API for reading plan:", error.message || error);
         return null;
     }
 }
