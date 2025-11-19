@@ -1,3 +1,4 @@
+
 import React, { ReactNode, useEffect } from 'react';
 import { CloseIcon } from './Icons';
 
@@ -36,18 +37,18 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
 
   return (
     <div 
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex justify-center items-start p-4 sm:p-6 md:p-10 overflow-y-auto"
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-center items-center p-4 sm:p-6 md:p-10 overflow-y-auto animate-fade-in"
       onClick={onClose}
       aria-modal="true"
       role="dialog"
     >
       <div
-        className="bg-branco-nevoa dark:bg-verde-mata rounded-2xl shadow-2xl w-full max-w-lg p-6 sm:p-8 transform transition-all"
+        className="bg-branco-nevoa dark:bg-verde-mata rounded-2xl shadow-2xl w-full max-w-lg p-6 sm:p-8 transform transition-all animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-6">
           <h2 className="font-serif text-2xl font-bold text-verde-mata dark:text-dourado-suave">{title}</h2>
-          <button onClick={onClose} className="p-1 rounded-full text-marrom-seiva dark:text-creme-velado hover:bg-marrom-seiva/10 dark:hover:bg-creme-velado/10">
+          <button onClick={onClose} className="p-2 rounded-full text-marrom-seiva dark:text-creme-velado hover:bg-marrom-seiva/10 dark:hover:bg-creme-velado/10 transition-colors duration-200">
             <CloseIcon className="w-6 h-6" />
           </button>
         </div>

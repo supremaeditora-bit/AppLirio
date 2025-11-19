@@ -291,7 +291,7 @@ export default function App() {
 
   const PageSuspense: React.FC = () => (
     <Suspense fallback={<div className="flex items-center justify-center h-full w-full"><Spinner /></div>}>
-      <div key={pageKey} className="animate-fade-in">
+      <div key={pageKey} className="animate-fade-in-up">
         {renderPage()}
       </div>
     </Suspense>
@@ -317,7 +317,7 @@ export default function App() {
         siteTitle={appearanceSettings?.logoSettings?.siteTitle}
         logoDisplayMode={appearanceSettings?.logoSettings?.logoDisplayMode}
       />
-      <div className={`flex flex-col h-full transition-[padding-left] duration-300 ease-in-out md:pl-64 ${isDesktopSidebarCollapsed ? 'md:!pl-20' : ''}`}>
+      <div className={`flex flex-col h-full transition-[padding-left] duration-500 ease-in-out md:pl-64 ${isDesktopSidebarCollapsed ? 'md:!pl-20' : ''}`}>
         <Header 
           onToggleMobileSidebar={() => setMobileSidebarOpen(!isMobileSidebarOpen)}
           user={user} 
@@ -327,7 +327,7 @@ export default function App() {
          {announcements.map(ann => (
             <AnnouncementBanner key={ann.id} announcement={ann} />
          ))}
-        <main className="flex-1 overflow-x-hidden overflow-y-auto pb-16 md:pb-0">
+        <main className="flex-1 overflow-x-hidden overflow-y-auto pb-16 md:pb-0 scroll-smooth">
            <PageSuspense />
         </main>
         <BottomNav 
@@ -344,15 +344,3 @@ export default function App() {
     </div>
   );
 }
-
-const style = document.createElement('style');
-style.innerHTML = `
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-  .animate-fade-in {
-    animation: fadeIn 0.5s ease-out forwards;
-  }
-`;
-document.head.appendChild(style);

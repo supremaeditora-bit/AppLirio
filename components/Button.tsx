@@ -11,7 +11,8 @@ type ButtonProps = {
 
 export default function Button({ children, variant = 'primary', fullWidth = false, className = '', ...props }: ButtonProps) {
   // Usamos focus:ring-btn-bg para assumir a mesma cor de fundo do botão no foco
-  const baseClasses = "flex items-center justify-center font-sans font-bold py-3 px-6 rounded-full text-base transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-verde-mata";
+  // Added 'active:scale-95' for click feedback and smoothed transitions
+  const baseClasses = "flex items-center justify-center font-sans font-bold py-3 px-6 rounded-full text-base transition-all duration-300 transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-verde-mata shadow-md hover:shadow-lg";
 
   const variantClasses = {
     primary: 'bg-btn-bg text-btn-text hover:opacity-90 focus:ring-btn-bg',
@@ -20,7 +21,7 @@ export default function Button({ children, variant = 'primary', fullWidth = fals
 
   const widthClass = fullWidth ? 'w-full' : '';
   
-  const disabledClass = props.disabled ? 'opacity-50 cursor-not-allowed' : '';
+  const disabledClass = props.disabled ? 'opacity-50 cursor-not-allowed hover:scale-100 active:scale-100 shadow-none' : '';
 
   return (
     <button

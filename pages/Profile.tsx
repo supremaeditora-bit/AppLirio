@@ -151,10 +151,11 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
       });
       fetchProfileData();
 
-      // Check push notification status
+      // Check push notification status from browser
       setIsPushLoading(true);
       pushService.getSubscription().then(subscription => {
         const hasEnabledInSettings = user.notificationSettings?.pushNotificationsEnabled;
+        // If browser has subscription AND user setting is true, it's enabled.
         setIsPushEnabled(!!subscription && !!hasEnabledInSettings);
         setIsPushLoading(false);
       });
@@ -265,24 +266,34 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
     setIsPushLoading(true);
     
     try {
-      if (isPushEnabled) { // If it's currently enabled, user wants to disable it
+      if (isPushEnabled) { // User wants to disable
         await pushService.unsubscribeUser();
         setIsPushEnabled(false);
-        await onUserUpdate({ notificationSettings: { ...user.notificationSettings, pushNotificationsEnabled: false } });
-      } else { // If it's disabled, user wants to enable it
+        
+        // Update DB setting
+        const newSettings = { ...user.notificationSettings, pushNotificationsEnabled: false };
+        await onUserUpdate({ notificationSettings: newSettings });
+        await updateUserProfileDocument(user.id, { notificationSettings: newSettings });
+        
+      } else { // User wants to enable
         if (Notification.permission === 'denied') {
           alert("As notificações foram bloqueadas nas configurações do seu navegador. Você precisa habilitá-las manualmente para recebê-las.");
+          setIsPushLoading(false);
           return;
         }
+        
         await pushService.subscribeUser(user.id);
         setIsPushEnabled(true);
-        await onUserUpdate({ notificationSettings: { ...user.notificationSettings, pushNotificationsEnabled: true } });
+        
+        // Update DB setting
+        const newSettings = { ...user.notificationSettings, pushNotificationsEnabled: true };
+        await onUserUpdate({ notificationSettings: newSettings });
+        await updateUserProfileDocument(user.id, { notificationSettings: newSettings });
       }
     } catch (error: any) {
       console.error("Failed to toggle push notifications", error);
       alert(`Não foi possível ${isPushEnabled ? 'desativar' : 'ativar'} as notificações: ${error.message}`);
-      // Revert state on error
-      setIsPushEnabled(isPushEnabled); 
+      // Don't change state on error
     } finally {
       setIsPushLoading(false);
     }
@@ -308,15 +319,21 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
       const currentSettings = { ...defaultSettings, ...(user.notificationSettings || {}) };
       const newSettings = { ...currentSettings, [key]: !currentSettings[key] };
       
+      // Optimistically update UI
       await onUserUpdate({ notificationSettings: newSettings });
-      // Note: In a real app, we'd save this to the DB here too.
-      // await updateUserProfileDocument(user.id, { notificationSettings: newSettings });
+      
+      // Save to DB
+      try {
+          await updateUserProfileDocument(user.id, { notificationSettings: newSettings });
+      } catch (e) {
+          console.error("Failed to save notification settings", e);
+          // Revert on error (optional, but good practice)
+      }
   };
   
   const handleClearCache = async () => {
     setIsClearingCache(true);
     await clearAppCacheAndReload();
-    // The page will reload, so no need to set loading to false.
   };
 
 
@@ -394,23 +411,23 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
                     {/* Fade effect on the right to indicate scrollability */}
                     <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-creme-velado dark:from-verde-escuro-profundo to-transparent pointer-events-none md:hidden z-10"></div>
                     
-                    <nav className="flex space-x-3 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
-                        <button onClick={() => setActiveTab('meus')} className={`flex-shrink-0 flex items-center gap-2 whitespace-nowrap py-2 px-5 rounded-full font-sans font-semibold text-sm transition-all duration-200 ${activeTab === 'meus' ? 'bg-dourado-suave text-verde-mata shadow-md' : 'bg-branco-nevoa dark:bg-verde-mata/50 text-marrom-seiva/70 dark:text-creme-velado/70 hover:bg-dourado-suave/20'}`}>
+                    <nav className="flex space-x-3 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0 snap-x">
+                        <button onClick={() => setActiveTab('meus')} className={`snap-center flex-shrink-0 flex items-center gap-2 whitespace-nowrap py-2 px-5 rounded-full font-sans font-semibold text-sm transition-all duration-200 border ${activeTab === 'meus' ? 'bg-dourado-suave text-verde-mata border-dourado-suave shadow-md' : 'bg-branco-nevoa dark:bg-verde-mata/50 text-marrom-seiva/70 dark:text-creme-velado/70 border-marrom-seiva/10 dark:border-creme-velado/10 hover:bg-dourado-suave/20 hover:border-dourado-suave/30'}`}>
                             <UserCircleIcon className="w-4 h-4" /> Meus Testemunhos
                         </button>
-                        <button onClick={() => setActiveTab('oracoes')} className={`flex-shrink-0 flex items-center gap-2 whitespace-nowrap py-2 px-5 rounded-full font-sans font-semibold text-sm transition-all duration-200 ${activeTab === 'oracoes' ? 'bg-dourado-suave text-verde-mata shadow-md' : 'bg-branco-nevoa dark:bg-verde-mata/50 text-marrom-seiva/70 dark:text-creme-velado/70 hover:bg-dourado-suave/20'}`}>
+                        <button onClick={() => setActiveTab('oracoes')} className={`snap-center flex-shrink-0 flex items-center gap-2 whitespace-nowrap py-2 px-5 rounded-full font-sans font-semibold text-sm transition-all duration-200 border ${activeTab === 'oracoes' ? 'bg-dourado-suave text-verde-mata border-dourado-suave shadow-md' : 'bg-branco-nevoa dark:bg-verde-mata/50 text-marrom-seiva/70 dark:text-creme-velado/70 border-marrom-seiva/10 dark:border-creme-velado/10 hover:bg-dourado-suave/20 hover:border-dourado-suave/30'}`}>
                             <PrayingHandsIcon className="w-4 h-4" /> Meus Pedidos
                         </button>
-                        <button onClick={() => setActiveTab('salvos')} className={`flex-shrink-0 flex items-center gap-2 whitespace-nowrap py-2 px-5 rounded-full font-sans font-semibold text-sm transition-all duration-200 ${activeTab === 'salvos' ? 'bg-dourado-suave text-verde-mata shadow-md' : 'bg-branco-nevoa dark:bg-verde-mata/50 text-marrom-seiva/70 dark:text-creme-velado/70 hover:bg-dourado-suave/20'}`}>
+                        <button onClick={() => setActiveTab('salvos')} className={`snap-center flex-shrink-0 flex items-center gap-2 whitespace-nowrap py-2 px-5 rounded-full font-sans font-semibold text-sm transition-all duration-200 border ${activeTab === 'salvos' ? 'bg-dourado-suave text-verde-mata border-dourado-suave shadow-md' : 'bg-branco-nevoa dark:bg-verde-mata/50 text-marrom-seiva/70 dark:text-creme-velado/70 border-marrom-seiva/10 dark:border-creme-velado/10 hover:bg-dourado-suave/20 hover:border-dourado-suave/30'}`}>
                             <BookmarkIcon className="w-4 h-4" /> Salvos
                         </button>
-                        <button onClick={() => setActiveTab('eventos')} className={`flex-shrink-0 flex items-center gap-2 whitespace-nowrap py-2 px-5 rounded-full font-sans font-semibold text-sm transition-all duration-200 ${activeTab === 'eventos' ? 'bg-dourado-suave text-verde-mata shadow-md' : 'bg-branco-nevoa dark:bg-verde-mata/50 text-marrom-seiva/70 dark:text-creme-velado/70 hover:bg-dourado-suave/20'}`}>
+                        <button onClick={() => setActiveTab('eventos')} className={`snap-center flex-shrink-0 flex items-center gap-2 whitespace-nowrap py-2 px-5 rounded-full font-sans font-semibold text-sm transition-all duration-200 border ${activeTab === 'eventos' ? 'bg-dourado-suave text-verde-mata border-dourado-suave shadow-md' : 'bg-branco-nevoa dark:bg-verde-mata/50 text-marrom-seiva/70 dark:text-creme-velado/70 border-marrom-seiva/10 dark:border-creme-velado/10 hover:bg-dourado-suave/20 hover:border-dourado-suave/30'}`}>
                             <CalendarDaysIcon className="w-4 h-4" /> Eventos
                         </button>
-                        <button onClick={() => setActiveTab('notificacoes')} className={`flex-shrink-0 flex items-center gap-2 whitespace-nowrap py-2 px-5 rounded-full font-sans font-semibold text-sm transition-all duration-200 ${activeTab === 'notificacoes' ? 'bg-dourado-suave text-verde-mata shadow-md' : 'bg-branco-nevoa dark:bg-verde-mata/50 text-marrom-seiva/70 dark:text-creme-velado/70 hover:bg-dourado-suave/20'}`}>
+                        <button onClick={() => setActiveTab('notificacoes')} className={`snap-center flex-shrink-0 flex items-center gap-2 whitespace-nowrap py-2 px-5 rounded-full font-sans font-semibold text-sm transition-all duration-200 border ${activeTab === 'notificacoes' ? 'bg-dourado-suave text-verde-mata border-dourado-suave shadow-md' : 'bg-branco-nevoa dark:bg-verde-mata/50 text-marrom-seiva/70 dark:text-creme-velado/70 border-marrom-seiva/10 dark:border-creme-velado/10 hover:bg-dourado-suave/20 hover:border-dourado-suave/30'}`}>
                             <BellIcon className="w-4 h-4" /> Notificações
                         </button>
-                        <button onClick={() => setActiveTab('configuracoes')} className={`flex-shrink-0 flex items-center gap-2 whitespace-nowrap py-2 px-5 rounded-full font-sans font-semibold text-sm transition-all duration-200 ${activeTab === 'configuracoes' ? 'bg-dourado-suave text-verde-mata shadow-md' : 'bg-branco-nevoa dark:bg-verde-mata/50 text-marrom-seiva/70 dark:text-creme-velado/70 hover:bg-dourado-suave/20'}`}>
+                        <button onClick={() => setActiveTab('configuracoes')} className={`snap-center flex-shrink-0 flex items-center gap-2 whitespace-nowrap py-2 px-5 rounded-full font-sans font-semibold text-sm transition-all duration-200 border ${activeTab === 'configuracoes' ? 'bg-dourado-suave text-verde-mata border-dourado-suave shadow-md' : 'bg-branco-nevoa dark:bg-verde-mata/50 text-marrom-seiva/70 dark:text-creme-velado/70 border-marrom-seiva/10 dark:border-creme-velado/10 hover:bg-dourado-suave/20 hover:border-dourado-suave/30'}`}>
                             <Cog8ToothIcon className="w-4 h-4" /> Configurações
                         </button>
                     </nav>
@@ -420,38 +437,38 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
                 
                 {!isLoadingData && activeTab === 'meus' && (
                     myTestimonials.length > 0 ?
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in-up">
                         {myTestimonials.map(post => <ProfilePostCard key={post.id} post={post} onCardClick={() => onViewTestimonial(post.id)} />)}
                     </div> :
-                    <p className="text-center p-8 text-marrom-seiva/70 dark:text-creme-velado/70">Você ainda não publicou nenhum testemunho.</p>
+                    <p className="text-center p-8 text-marrom-seiva/70 dark:text-creme-velado/70 animate-fade-in">Você ainda não publicou nenhum testemunho.</p>
                 )}
 
                     {!isLoadingData && activeTab === 'oracoes' && (
                     myPrayerRequests.length > 0 ?
-                    <div className="space-y-4">
+                    <div className="space-y-4 animate-fade-in-up">
                         {myPrayerRequests.map(post => <PrayerRequestCard key={post.id} post={post} onEdit={handleOpenPrayerForm} onDelete={handleOpenConfirmDelete} />)}
                     </div> :
-                    <p className="text-center p-8 text-marrom-seiva/70 dark:text-creme-velado/70">Você ainda não fez nenhum pedido de oração.</p>
+                    <p className="text-center p-8 text-marrom-seiva/70 dark:text-creme-velado/70 animate-fade-in">Você ainda não fez nenhum pedido de oração.</p>
                 )}
 
                 {!isLoadingData && activeTab === 'salvos' && (
                     savedTestimonials.length > 0 ?
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in-up">
                         {savedTestimonials.map(post => <ProfilePostCard key={post.id} post={post} onCardClick={() => onViewTestimonial(post.id)} />)}
                     </div> :
-                    <p className="text-center p-8 text-marrom-seiva/70 dark:text-creme-velado/70">Você ainda não salvou nenhum testemunho.</p>
+                    <p className="text-center p-8 text-marrom-seiva/70 dark:text-creme-velado/70 animate-fade-in">Você ainda não salvou nenhum testemunho.</p>
                 )}
                 
                 {!isLoadingData && activeTab === 'eventos' && (
                     myEvents.length > 0 ?
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in-up">
                         {myEvents.map(event => <EventCard key={event.id} event={event} onCardClick={() => onNavigate('eventDetail', event.id)} />)}
                     </div> :
-                    <p className="text-center p-8 text-marrom-seiva/70 dark:text-creme-velado/70">Você ainda não se inscreveu em nenhum evento.</p>
+                    <p className="text-center p-8 text-marrom-seiva/70 dark:text-creme-velado/70 animate-fade-in">Você ainda não se inscreveu em nenhum evento.</p>
                 )}
 
                 {!isLoadingData && activeTab === 'notificacoes' && (
-                        <div className="bg-branco-nevoa dark:bg-verde-mata rounded-xl shadow-lg">
+                        <div className="bg-branco-nevoa dark:bg-verde-mata rounded-xl shadow-lg animate-fade-in-up">
                         {notifications.length > 0 ? (
                             notifications.map(notif => <NotificationItem key={notif.id} notification={notif} />)
                         ) : (
@@ -461,7 +478,7 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
                 )}
                 
                 {!isLoadingData && activeTab === 'configuracoes' && (
-                    <div className="space-y-6">
+                    <div className="space-y-6 animate-fade-in-up">
                         <div className="bg-branco-nevoa dark:bg-verde-mata rounded-xl shadow-lg p-6">
                             <h3 className="font-serif text-xl font-semibold text-verde-mata dark:text-dourado-suave mb-4">Notificações Push</h3>
                             <div className="flex items-center justify-between">
