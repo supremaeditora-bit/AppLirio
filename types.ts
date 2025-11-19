@@ -267,3 +267,13 @@ export interface Announcement {
   isActive: boolean;
   createdAt: string;
 }
+
+
+export interface Notification {
+  id: string;
+  title: string;
+  message: string;
+  type?: 'system' | 'reminder' | 'message' | string;
+  read?: boolean;
+  createdAt?: string; // ou Date, se preferir
+}
