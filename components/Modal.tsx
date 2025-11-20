@@ -37,7 +37,7 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
 
   return (
     <div 
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-center items-center p-4 sm:p-6 md:p-10 overflow-y-auto animate-fade-in"
+      className="fixed inset-0 bg-black/60 z-50 flex justify-center items-center p-4 sm:p-6 md:p-10 overflow-y-auto animate-fade-in"
       onClick={onClose}
       aria-modal="true"
       role="dialog"

@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { User, Page, PageHeaderConfig, BookLaunchConfig, Comment } from '../types';
-import { getAppearanceSettings, getCommunityPostById, addCommentToPost, addReactionToPost, deleteCommentFromPost, addReactionToComment } from '../services/api';
+import { getAppearanceSettings, getCommunityPostById, addCommentToPost, addReactionToPost, deleteCommentFromPost, addReactionToComment, createCommunityPost } from '../services/api';
 import Spinner from '../components/Spinner';
 import Button from '../components/Button';
 import { ChevronLeftIcon, HeartIcon, ChatBubbleIcon, TrashIcon, PaperAirplaneIcon } from '../components/Icons';
@@ -16,10 +17,9 @@ export default function BookLaunch({ user, onNavigate }: BookLaunchProps) {
     const [headerConfig, setHeaderConfig] = useState<PageHeaderConfig | undefined>(undefined);
     const [bookConfig, setBookConfig] = useState<BookLaunchConfig | undefined>(undefined);
     
-    // Comment System State (Using 'book-launch' as a fixed post ID for comments)
-    const BOOK_COMMENTS_ID = 'book-launch'; 
-    // NOTE: In a real app, we would ensure a CommunityPost with this ID exists. 
-    // For this demo, we will attempt to fetch it, and if it doesn't exist, comments might fail gracefully or we'd create it silently.
+    // UUID válido para o sistema de comentários do livro
+    const BOOK_COMMENTS_ID = '00000000-0000-0000-0000-000000000001'; 
+    
     const [comments, setComments] = useState<Comment[]>([]);
     const [commentText, setCommentText] = useState('');
     const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null);
@@ -29,7 +29,11 @@ export default function BookLaunch({ user, onNavigate }: BookLaunchProps) {
         const fetchData = async () => {
             setIsLoading(true);
             try {
-                const settings = await getAppearanceSettings();
+                const [settings, post] = await Promise.all([
+                    getAppearanceSettings(),
+                    getCommunityPostById(BOOK_COMMENTS_ID)
+                ]);
+
                 if (settings.pageHeaders?.bookLaunch) {
                     setHeaderConfig(settings.pageHeaders.bookLaunch);
                 }
@@ -37,10 +41,22 @@ export default function BookLaunch({ user, onNavigate }: BookLaunchProps) {
                     setBookConfig(settings.bookLaunch);
                 }
 
-                // Fetch comments attached to a virtual post ID
-                const post = await getCommunityPostById(BOOK_COMMENTS_ID);
                 if (post) {
                     setComments(post.comments.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+                } else if (user) {
+                    // Se o post container não existir e tivermos um usuário, criamos ele silenciosamente
+                    // para habilitar os comentários.
+                    try {
+                        await createCommunityPost({
+                            id: BOOK_COMMENTS_ID,
+                            room: 'estudos', // Usa uma sala existente como bucket
+                            title: 'Lançamento do Livro',
+                            body: 'Espaço dedicado aos comentários sobre o lançamento do livro.',
+                            authorId: user.id
+                        });
+                    } catch (err) {
+                        console.warn("Could not auto-create book comment post", err);
+                    }
                 }
             } catch (error) {
                 console.error("Failed to fetch book launch data", error);
@@ -49,7 +65,7 @@ export default function BookLaunch({ user, onNavigate }: BookLaunchProps) {
             }
         };
         fetchData();
-    }, []);
+    }, [user]); // Dependência user adicionada para tentar criar o post se logado
 
     const handleComment = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -71,6 +87,7 @@ export default function BookLaunch({ user, onNavigate }: BookLaunchProps) {
             await addCommentToPost(BOOK_COMMENTS_ID, newComment.body, user);
         } catch (error) {
             console.error("Failed to post comment", error);
+            // Reverter optimistic update em caso de erro seria ideal, mas mantendo simples por enquanto
         }
     };
     
@@ -79,10 +96,11 @@ export default function BookLaunch({ user, onNavigate }: BookLaunchProps) {
         
         const updatedComments = comments.map(c => {
             if (c.id === commentId) {
-                const hasReacted = c.reactions.some(r => r.userId === user.id);
+                const reactions = c.reactions || [];
+                const hasReacted = reactions.some(r => r.userId === user.id);
                 const newReactions = hasReacted 
-                    ? c.reactions.filter(r => r.userId !== user.id) 
-                    : [...c.reactions, { userId: user.id }];
+                    ? reactions.filter(r => r.userId !== user.id) 
+                    : [...reactions, { userId: user.id }];
                 return { ...c, reactions: newReactions };
             }
             return c;

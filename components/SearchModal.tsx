@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { ContentItem, User } from '../types';
 import { getAllContent } from '../services/api';
@@ -104,13 +105,13 @@ export default function SearchModal({ isOpen, onClose, onViewDetail, user }: Sea
 
   return (
     <div
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex justify-center items-start p-4 sm:p-6 md:p-10 transition-opacity duration-300"
+      className="fixed inset-0 bg-black/60 z-50 flex justify-center items-start p-4 sm:p-6 md:p-10 transition-opacity duration-300"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
     >
       <div
-        className="w-full max-w-2xl bg-creme-velado/90 dark:bg-verde-escuro-profundo/90 rounded-2xl shadow-2xl flex flex-col overflow-hidden transform transition-all duration-300"
+        className="w-full max-w-2xl bg-creme-velado dark:bg-verde-escuro-profundo rounded-2xl shadow-2xl flex flex-col overflow-hidden transform transition-all duration-300"
         onClick={e => e.stopPropagation()}
         style={{ maxHeight: '85vh' }}
       >

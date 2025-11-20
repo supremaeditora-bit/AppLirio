@@ -326,8 +326,9 @@ export const getAllCommunityPostsForAdmin = async (): Promise<CommunityPost[]> =
     }
 };
 
-export const createCommunityPost = async (post: { room: string; title: string; body: string; authorId: string; imageUrl?: string; isAnonymous?: boolean }): Promise<void> => {
+export const createCommunityPost = async (post: { id?: string; room: string; title: string; body: string; authorId: string; imageUrl?: string; isAnonymous?: boolean }): Promise<void> => {
     const dataToInsert = {
+        id: post.id, // Optional ID
         room: post.room,
         title: post.title,
         body: post.body,

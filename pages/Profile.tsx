@@ -7,7 +7,6 @@ import Button from '../components/Button';
 import { getNotifications, getCommunityPosts, updateCommunityPost, deleteCommunityPost, getEvents, getReadingPlans, getAllUserReadingProgress, getContentItem } from '../services/api';
 import { updateUserProfileDocument } from '../services/authService';
 import { uploadImage } from '../services/storageService';
-import { clearAppCacheAndReload } from '../services/cacheService';
 import { BookmarkIcon, UserCircleIcon, BellIcon, PrayingHandsIcon, PencilIcon, TrashIcon, CalendarDaysIcon, CameraIcon, MapPinIcon, HomeModernIcon, InstagramIcon, FacebookIcon, WhatsAppIcon, Cog8ToothIcon, SparklesIcon, QueueListIcon, AcademicCapIcon, PlayCircleIcon, UsersIcon, ChatBubbleIcon, HeartIcon } from '../components/Icons';
 import ConfirmationModal from '../components/ConfirmationModal';
 import ProgressBar from '../components/ProgressBar';
@@ -158,10 +157,6 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
   const [isPushEnabled, setIsPushEnabled] = useState(false);
   const [isPushLoading, setIsPushLoading] = useState(true);
   
-  // Cache clearing state
-  const [isCacheClearConfirmOpen, setIsCacheClearConfirmOpen] = useState(false);
-  const [isClearingCache, setIsClearingCache] = useState(false);
-
 
   const fetchProfileData = async () => {
       if (!user) return;
@@ -388,11 +383,6 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
           // Revert on error (optional, but good practice)
       }
   };
-  
-  const handleClearCache = async () => {
-    setIsClearingCache(true);
-    await clearAppCacheAndReload();
-  };
 
   const handleOpenPlaylist = async (playlist: UserPlaylist) => {
       setViewingPlaylist(playlist);
@@ -488,7 +478,6 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
                         </div>
                         <button onClick={() => onNavigate('myGarden')} className="text-sm font-semibold text-dourado-suave hover:underline">Ver completo</button>
                     </div>
-                    {/* Removed background opacity classes here */}
                     <div className="p-4 rounded-lg border border-marrom-seiva/5 dark:border-creme-velado/5">
                          <div className="flex justify-between items-center font-sans text-sm font-semibold text-marrom-seiva/80 dark:text-creme-velado/80 mb-2">
                             <span>{user.gardenLevelName || "Semente Plantada"}</span>
@@ -687,18 +676,6 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
                                 ))}
                             </div>
                         </div>
-                        
-                        <div className="bg-branco-nevoa dark:bg-verde-mata rounded-xl shadow-lg p-6">
-                            <h3 className="font-serif text-xl font-semibold text-verde-mata dark:text-dourado-suave mb-4">Gerenciamento de Cache</h3>
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="font-sans font-semibold text-verde-mata dark:text-creme-velado">Limpar dados do aplicativo</p>
-                                    <p className="font-sans text-sm text-marrom-seiva/80 dark:text-creme-velado/80">Isso remove dados em cache e pode resolver problemas de exibição.</p>
-                                </div>
-                                <Button variant="secondary" onClick={() => setIsCacheClearConfirmOpen(true)}>Esvaziar Cache</Button>
-                            </div>
-                        </div>
-
                     </div>
                 )}
             </main>
@@ -799,16 +776,6 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
             confirmText="Excluir"
         />
     )}
-    
-    <ConfirmationModal
-        isOpen={isCacheClearConfirmOpen}
-        onClose={() => setIsCacheClearConfirmOpen(false)}
-        onConfirm={handleClearCache}
-        title="Esvaziar Cache do Aplicativo"
-        message="Isso removerá todos os dados salvos offline (cache) e recarregará o aplicativo com os dados mais recentes. Deseja continuar?"
-        confirmText="Sim, esvaziar"
-        isLoading={isClearingCache}
-    />
     </>
   );
 }

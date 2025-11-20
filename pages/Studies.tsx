@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { getCommunityPosts, createCommunityPost, addReactionToPost, addCommentToPost, deleteCommentFromPost, addReactionToComment, getCommunityPostById, updateCommunityPost, deleteCommunityPost, getAppearanceSettings } from '../services/api';
 import { CommunityPost, User, Comment, PageHeaderConfig } from '../types';
@@ -420,8 +421,8 @@ export default function Studies({ user }: StudiesProps) {
                         </div>
 
                         {/* Comments list - Scrollable Middle */}
-                        {/* Added min-h-0 to ensure flex child scrolls properly inside flex parent */}
-                        <div className="flex-1 overflow-y-auto min-h-0 px-6 py-4 sm:px-8 space-y-4 bg-creme-velado/50 dark:bg-verde-escuro-profundo/50">
+                        {/* Removed bg color class to fix 'film' issue */}
+                        <div className="flex-1 overflow-y-auto min-h-0 px-6 py-4 sm:px-8 space-y-4">
                             {viewingCommentsFor.comments.length > 0 ? viewingCommentsFor.comments.map(comment => {
                                 const hasCommentReacted = user ? comment.reactions?.some(r => r.userId === user.id) : false;
                                 return (

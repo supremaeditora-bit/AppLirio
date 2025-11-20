@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { getCommunityPosts, createCommunityPost, addReactionToPost, addCommentToPost, updateCommunityPost, deleteCommunityPost, deleteCommentFromPost, addReactionToComment, getCommunityPostById, getAppearanceSettings } from '../services/api';
 import { CommunityPost, User, Comment, PageHeaderConfig } from '../types';
@@ -444,15 +445,15 @@ export default function Prayers({ user, onUserUpdate }: PrayersProps) {
                         </div>
 
                         {/* Comments list */}
-                        {/* Added min-h-0 to ensure scroll works correctly in flex */}
-                        <div className="flex-1 overflow-y-auto min-h-0 px-6 py-4 sm:px-8 space-y-4 bg-creme-velado/50 dark:bg-verde-escuro-profundo/50">
+                        {/* Removed bg color class to fix 'film' issue */}
+                        <div className="flex-1 overflow-y-auto min-h-0 px-6 py-4 sm:px-8 space-y-4">
                             {viewingCommentsFor.comments.length > 0 ? viewingCommentsFor.comments.map(comment => {
                                 const hasCommentReacted = user ? comment.reactions?.some(r => r.userId === user.id) : false;
                                 return (
                                 <div key={comment.id} className="group flex items-start space-x-3">
                                     <img src={comment.author.avatarUrl} alt={comment.author.fullName} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
                                     <div className="flex-1 min-w-0">
-                                        <div className="bg-creme-velado dark:bg-verde-escuro-profundo p-3 rounded-lg shadow-sm border border-marrom-seiva/5 dark:border-creme-velado/5">
+                                        <div className="bg-branco-nevoa dark:bg-verde-mata p-3 rounded-lg shadow-sm">
                                             <div className="flex justify-between items-start">
                                                 <div>
                                                     <p className="font-sans text-sm">
