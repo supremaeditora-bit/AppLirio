@@ -9,7 +9,7 @@ import TicketModal from '../components/TicketModal';
 interface EventDetailProps {
   id: string;
   user: User | null;
-  onNavigate: (page: Page) => void;
+  onNavigate: (page: Page, id?: string) => void;
 }
 
 export default function EventDetail({ id, user, onNavigate }: EventDetailProps) {
@@ -34,6 +34,13 @@ export default function EventDetail({ id, user, onNavigate }: EventDetailProps) 
 
   const handleRegister = async () => {
     if (!user || !event) return;
+    
+    // Se for pago, vai para checkout
+    if (event.price && event.price > 0) {
+        onNavigate('checkout', event.id);
+        return;
+    }
+
     setIsRegistering(true);
     await registerForEvent(event.id, user.id);
     setIsRegistered(true);
@@ -61,7 +68,7 @@ export default function EventDetail({ id, user, onNavigate }: EventDetailProps) 
         </button>
         <div className="h-[40vh] sm:h-[50vh] w-full relative">
           <img src={event.imageUrl} alt={event.title} className="w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-creme-velado via-creme-velado/70 to-transparent dark:from-verde-escuro-profundo dark:via-verde-escuro-profundo/70"></div>
+          <div className="absolute inset-0 bg-gradient-to-t from-[#D9C7A6] from-20% via-[#D9C7A6]/80 via-60% to-transparent dark:from-[#152218] dark:from-20% dark:via-[#152218]/80 dark:via-60% transition-colors duration-500"></div>
         </div>
         <div className="container mx-auto p-4 sm:p-8 -mt-24 relative z-10">
           <div className="max-w-4xl mx-auto">
@@ -92,7 +99,7 @@ export default function EventDetail({ id, user, onNavigate }: EventDetailProps) 
                 <Button fullWidth onClick={() => setIsTicketOpen(true)}>Ver Ingresso</Button>
               ) : (
                 <Button fullWidth onClick={handleRegister} disabled={isRegistering}>
-                  {isRegistering ? <Spinner variant="button" /> : 'Confirmar Presença'}
+                  {isRegistering ? <Spinner variant="button" /> : (event.price && event.price > 0 ? 'Comprar Ingresso' : 'Confirmar Presença')}
                 </Button>
               )}
             </div>

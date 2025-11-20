@@ -10,6 +10,7 @@ import BottomNav from './components/BottomNav';
 import Spinner from './components/Spinner';
 import SearchModal from './components/SearchModal';
 import AnnouncementBanner from './components/AnnouncementBanner';
+import Footer from './components/Footer';
 
 // Pages (lazy loaded for performance)
 const LandingPage = lazy(() => import('./pages/Landing'));
@@ -35,6 +36,10 @@ const EventDetail = lazy(() => import('./pages/EventDetail'));
 const Mentorships = lazy(() => import('./pages/Mentorships'));
 const MyGarden = lazy(() => import('./pages/MyGarden'));
 const Journal = lazy(() => import('./pages/Journal'));
+const About = lazy(() => import('./pages/About'));
+const FAQ = lazy(() => import('./pages/FAQ'));
+const Checkout = lazy(() => import('./pages/Checkout'));
+const BookLaunch = lazy(() => import('./pages/BookLaunch'));
 
 const hexToRgb = (hex: string): string => {
   if (hex === 'transparent') {
@@ -221,7 +226,7 @@ export default function App() {
   const handleNavigate = useCallback((page: Page, id: string | null = null) => {
     setCurrentPage(page);
     setPageKey(Date.now());
-    if (page === 'contentDetail' || page === 'testimonialDetail' || page === 'planDetail') {
+    if (page === 'contentDetail' || page === 'testimonialDetail' || page === 'planDetail' || page === 'checkout') {
         setDetailId(id);
         setEventDetailId(null);
     } else if (page === 'eventDetail') {
@@ -284,6 +289,10 @@ export default function App() {
       case 'planDetail': return detailId ? <PlanDetail id={detailId} user={user} onNavigate={handleNavigate} /> : null;
       case 'events': return <Events user={user} onNavigate={handleNavigate} />;
       case 'eventDetail': return eventDetailId ? <EventDetail id={eventDetailId} user={user} onNavigate={handleNavigate} /> : null;
+      case 'about': return <About user={user} />;
+      case 'faq': return <FAQ user={user} />;
+      case 'checkout': return <Checkout itemId={detailId} user={user} onNavigate={handleNavigate} />;
+      case 'bookLaunch': return <BookLaunch user={user} onNavigate={handleNavigate} />;
       case 'admin': return user.role === 'admin' ? <Admin user={user} /> : <Home onNavigate={handleNavigate} user={user} onViewDetail={handleViewDetail} onUserUpdate={handleUserUpdate} />;
       default: return <Home onNavigate={handleNavigate} user={user} onViewDetail={handleViewDetail} onUserUpdate={handleUserUpdate} />;
     }
@@ -291,7 +300,7 @@ export default function App() {
 
   const PageSuspense: React.FC = () => (
     <Suspense fallback={<div className="flex items-center justify-center h-full w-full"><Spinner /></div>}>
-      <div key={pageKey} className="animate-fade-in-up">
+      <div key={pageKey} className="animate-fade-in-up h-full flex flex-col">
         {renderPage()}
       </div>
     </Suspense>
@@ -327,8 +336,11 @@ export default function App() {
          {announcements.map(ann => (
             <AnnouncementBanner key={ann.id} announcement={ann} />
          ))}
-        <main className="flex-1 overflow-x-hidden overflow-y-auto pb-16 md:pb-0 scroll-smooth">
-           <PageSuspense />
+        <main className="flex-1 flex flex-col overflow-x-hidden overflow-y-auto pb-16 md:pb-0 scroll-smooth">
+           <div className="flex-1">
+                <PageSuspense />
+           </div>
+           <Footer appearanceSettings={appearanceSettings} />
         </main>
         <BottomNav 
           onNavigate={handleNavigate}

@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 // FIX: Changed from interface to type with intersection to fix type inference for rest props.
@@ -6,12 +7,16 @@ type InputFieldProps = {
   id: string;
   type?: string;
   error?: string;
+  className?: string;
 } & React.InputHTMLAttributes<HTMLInputElement | HTMLTextAreaElement>;
 
-export default function InputField({ label, id, type = 'text', error, ...props }: InputFieldProps) {
+export default function InputField({ label, id, type = 'text', error, className = '', ...props }: InputFieldProps) {
   const commonClasses = "w-full font-sans bg-creme-velado dark:bg-verde-escuro-profundo border-2 border-marrom-seiva/20 dark:border-creme-velado/20 rounded-lg p-3 text-marrom-seiva dark:text-creme-velado focus:outline-none focus:ring-2 focus:ring-dourado-suave focus:border-dourado-suave transition-colors placeholder:text-[#7A6C59] dark:placeholder:text-creme-velado/60";
   
   const InputComponent = type === 'textarea' ? 'textarea' : 'input';
+  
+  // Combina as classes padrão com as classes passadas via prop
+  const combinedClasses = `${commonClasses} ${className}`;
 
   return (
     <div>
@@ -21,7 +26,7 @@ export default function InputField({ label, id, type = 'text', error, ...props }
       <InputComponent
         id={id}
         type={type}
-        className={commonClasses}
+        className={combinedClasses}
         rows={type === 'textarea' ? 4 : undefined}
         {...props}
       />

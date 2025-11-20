@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import InputField from '../InputField';
 import Button from '../Button';
@@ -6,7 +5,7 @@ import Spinner from '../Spinner';
 import { getAppearanceSettings, updateAppearanceSettings, createContentItem } from '../../services/api';
 import { generateDevotional } from '../../services/geminiService';
 import { uploadImage } from '../../services/storageService';
-import { AppearanceSettings, ThemeColors, GeneratedDevotional } from '../../types';
+import { AppearanceSettings, ThemeColors, GeneratedDevotional, PageHeaderConfig, BookLaunchConfig } from '../../types';
 
 const defaultSettings: Partial<AppearanceSettings> = {
     isAiDevotionalEnabled: false,
@@ -36,6 +35,9 @@ const defaultSettings: Partial<AppearanceSettings> = {
     backgroundImageUrlDark: '',
     componentBackgroundImageUrlLight: '',
     componentBackgroundImageUrlDark: '',
+    termsOfUse: '',
+    privacyPolicy: '',
+    contactInfo: '',
 };
 
 const formatDevotionalToContentBody = (devotional: GeneratedDevotional): string => {
@@ -79,6 +81,18 @@ const FileUpload: React.FC<{ label: string; file: File | null; preview: string |
     </div>
 );
 
+const PAGE_OPTIONS = [
+    { id: 'mentorships', label: 'Mentorias' },
+    { id: 'prayers', label: 'Pedidos de Oração' },
+    { id: 'studies', label: 'Grupos de Estudo' },
+    { id: 'testimonials', label: 'Testemunhos' },
+    { id: 'readingPlans', label: 'Planos de Leitura' },
+    { id: 'events', label: 'Eventos' },
+    { id: 'podcasts', label: 'Podcasts' },
+    { id: 'journal', label: 'Diário (Lista)' },
+    { id: 'bookLaunch', label: 'Lançamento (Hero)' },
+];
+
 export default function AppearanceManager() {
   const [settings, setSettings] = useState<Partial<AppearanceSettings>>(defaultSettings);
   const [isLoading, setIsLoading] = useState(true);
@@ -103,6 +117,17 @@ export default function AppearanceManager() {
   const [selectedCompBgImageDark, setSelectedCompBgImageDark] = useState<File | null>(null);
   const [compBgImagePreviewDark, setCompBgImagePreviewDark] = useState<string | null>(null);
 
+  // Page Headers State
+  const [selectedPageId, setSelectedPageId] = useState<string>(PAGE_OPTIONS[0].id);
+  const [selectedHeaderImage, setSelectedHeaderImage] = useState<File | null>(null);
+  const [headerImagePreview, setHeaderImagePreview] = useState<string | null>(null);
+
+  // Book Launch State
+  const [selectedBookCover, setSelectedBookCover] = useState<File | null>(null);
+  const [bookCoverPreview, setBookCoverPreview] = useState<string | null>(null);
+  const [selectedAuthorPhoto, setSelectedAuthorPhoto] = useState<File | null>(null);
+  const [authorPhotoPreview, setAuthorPhotoPreview] = useState<string | null>(null);
+
   useEffect(() => {
     const fetchSettings = async () => {
         setIsLoading(true);
@@ -126,7 +151,7 @@ export default function AppearanceManager() {
     setSettings(prev => ({ ...prev, [id]: value }));
   };
 
-  const handleLogoSettingsChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleLogoSettingsChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { id, value } = e.target;
     setSettings(prev => ({
         ...prev,
@@ -176,6 +201,37 @@ export default function AppearanceManager() {
     }
   }
 
+  // Page Header Handlers
+  const handlePageHeaderChange = (field: keyof PageHeaderConfig, value: string) => {
+      setSettings(prev => ({
+          ...prev,
+          pageHeaders: {
+              ...(prev.pageHeaders || {}),
+              [selectedPageId]: {
+                  ...(prev.pageHeaders?.[selectedPageId] || { title: '', subtitle: '', imageUrl: '' }),
+                  [field]: value
+              }
+          }
+      }));
+  };
+  
+  const handlePageSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+      setSelectedPageId(e.target.value);
+      setSelectedHeaderImage(null);
+      setHeaderImagePreview(null);
+  }
+
+  // Book Launch Handlers
+  const handleBookChange = (field: keyof BookLaunchConfig, value: string | number) => {
+      setSettings(prev => ({
+          ...prev,
+          bookLaunch: {
+              ...(prev.bookLaunch || {}),
+              [field]: value
+          }
+      } as any));
+  };
+
   const handleSave = async () => {
     setIsSaving(true);
     setSaveSuccess(false);
@@ -220,13 +276,45 @@ export default function AppearanceManager() {
                 finalSettings.componentBackgroundImageUrlDark = url;
             }));
         }
+        
+        // Handle Page Header Image Upload (Only uploads for the currently selected page to save bandwidth/complexity)
+        if (selectedHeaderImage) {
+            uploads.push(uploadImage(selectedHeaderImage, 'appearance', () => {}).then(url => {
+                finalSettings.pageHeaders = {
+                    ...(finalSettings.pageHeaders || {}),
+                    [selectedPageId]: {
+                         ...(finalSettings.pageHeaders?.[selectedPageId] || { title: '', subtitle: '', imageUrl: '' }),
+                        imageUrl: url
+                    }
+                };
+            }));
+        }
+
+        // Handle Book Launch Images
+        if (selectedBookCover) {
+            uploads.push(uploadImage(selectedBookCover, 'bookLaunch', () => {}).then(url => {
+                finalSettings.bookLaunch = { ...finalSettings.bookLaunch!, bookCoverUrl: url };
+            }));
+        }
+        if (selectedAuthorPhoto) {
+            uploads.push(uploadImage(selectedAuthorPhoto, 'bookLaunch', () => {}).then(url => {
+                finalSettings.bookLaunch = { ...finalSettings.bookLaunch!, authorImageUrl: url };
+            }));
+        }
 
         await Promise.all(uploads);
         await updateAppearanceSettings(finalSettings);
         setSaveSuccess(true);
+        
+        // Reset local file states after save
+        setSelectedHeaderImage(null);
+        setHeaderImagePreview(null);
+        setSelectedBookCover(null);
+        setBookCoverPreview(null);
+        setSelectedAuthorPhoto(null);
+        setAuthorPhotoPreview(null);
+
         setTimeout(() => setSaveSuccess(false), 3000);
-        // Optionally refresh page to see all changes applied
-        // window.location.reload();
     } catch (error: any) {
         console.error("Failed to save settings", error);
         let errorMessage = "Falha ao salvar as configurações. Tente novamente.";
@@ -246,6 +334,9 @@ export default function AppearanceManager() {
   if (isLoading) {
       return <div className="flex justify-center py-10"><Spinner/></div>
   }
+
+  const currentHeader = settings.pageHeaders?.[selectedPageId] || { title: '', subtitle: '', imageUrl: '' };
+  const currentBook = settings.bookLaunch || {} as BookLaunchConfig;
 
   return (
     <div className="space-y-8">
@@ -273,115 +364,179 @@ export default function AppearanceManager() {
       </div>
       
       <div className="bg-branco-nevoa dark:bg-verde-mata p-6 rounded-xl shadow-lg">
-        <h2 className="font-serif text-2xl font-semibold text-verde-mata dark:text-dourado-suave mb-4">Paleta de Cores</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <ColorInput label="Fundo (Claro)" value={settings.themeColors?.lightBg || '#000000'} onChange={(e) => handleColorChange('lightBg', e.target.value)} onSetTransparent={() => handleSetTransparent('lightBg')} />
-          <ColorInput label="Componentes (Claro)" value={settings.themeColors?.lightComponentBg || '#000000'} onChange={(e) => handleColorChange('lightComponentBg', e.target.value)} onSetTransparent={() => handleSetTransparent('lightComponentBg')} />
-          <div>
-            <label className="block font-sans font-semibold text-sm mb-1 text-marrom-seiva dark:text-creme-velado/80">Texto (Claro)</label>
-            <div className="flex items-center gap-2 p-2 border-2 border-marrom-seiva/20 dark:border-creme-velado/20 rounded-lg bg-creme-velado dark:bg-verde-escuro-profundo">
-                <input type="color" value={settings.themeColors?.lightText} onChange={(e) => handleColorChange('lightText', e.target.value)} className="w-8 h-8 p-0 border-none bg-transparent cursor-pointer" style={{ appearance: 'none', WebkitAppearance: 'none' }} />
-                <input type="text" value={settings.themeColors?.lightText} onChange={(e) => handleColorChange('lightText', e.target.value)} className="w-full font-mono text-sm bg-transparent focus:outline-none" />
+        <h2 className="font-serif text-2xl font-semibold text-verde-mata dark:text-dourado-suave mb-4">Personalização do Tema</h2>
+        
+        {/* Background Images */}
+        <div className="space-y-4 mb-8 border-b border-marrom-seiva/10 dark:border-creme-velado/10 pb-6">
+            <div className="flex items-center mb-4">
+                <input type="checkbox" id="useBackgroundImage" checked={settings.useBackgroundImage || false} onChange={handleToggleChange} className="mr-2 h-5 w-5 accent-dourado-suave" />
+                <label htmlFor="useBackgroundImage" className="font-sans font-semibold text-marrom-seiva dark:text-creme-velado">Usar Imagens de Fundo</label>
             </div>
-          </div>
-          <ColorInput label="Fundo (Escuro)" value={settings.themeColors?.darkBg || '#000000'} onChange={(e) => handleColorChange('darkBg', e.target.value)} onSetTransparent={() => handleSetTransparent('darkBg')} />
-          <ColorInput label="Componentes (Escuro)" value={settings.themeColors?.darkComponentBg || '#000000'} onChange={(e) => handleColorChange('darkComponentBg', e.target.value)} onSetTransparent={() => handleSetTransparent('darkComponentBg')} />
-          
-          <div>
-             <label className="block font-sans font-semibold text-sm mb-1 text-marrom-seiva dark:text-creme-velado/80">Cor de Destaque (Claro)</label>
-             <div className="flex items-center gap-2 p-2 border-2 border-marrom-seiva/20 dark:border-creme-velado/20 rounded-lg bg-creme-velado dark:bg-verde-escuro-profundo">
-                <input type="color" value={settings.themeColors?.lightAccent} onChange={(e) => handleColorChange('lightAccent', e.target.value)} className="w-8 h-8 p-0 border-none bg-transparent cursor-pointer" style={{ appearance: 'none', WebkitAppearance: 'none' }} />
-                <input type="text" value={settings.themeColors?.lightAccent} onChange={(e) => handleColorChange('lightAccent', e.target.value)} className="w-full font-mono text-sm bg-transparent focus:outline-none" />
-             </div>
-          </div>
-           <div>
-             <label className="block font-sans font-semibold text-sm mb-1 text-marrom-seiva dark:text-creme-velado/80">Cor de Destaque (Escuro)</label>
-             <div className="flex items-center gap-2 p-2 border-2 border-marrom-seiva/20 dark:border-creme-velado/20 rounded-lg bg-creme-velado dark:bg-verde-escuro-profundo">
-                <input type="color" value={settings.themeColors?.darkAccent} onChange={(e) => handleColorChange('darkAccent', e.target.value)} className="w-8 h-8 p-0 border-none bg-transparent cursor-pointer" style={{ appearance: 'none', WebkitAppearance: 'none' }} />
-                <input type="text" value={settings.themeColors?.darkAccent} onChange={(e) => handleColorChange('darkAccent', e.target.value)} className="w-full font-mono text-sm bg-transparent focus:outline-none" />
-             </div>
-          </div>
-
-          {/* Button Colors */}
-           <div>
-             <label className="block font-sans font-semibold text-sm mb-1 text-marrom-seiva dark:text-creme-velado/80">Botão - Fundo (Claro)</label>
-             <div className="flex items-center gap-2 p-2 border-2 border-marrom-seiva/20 dark:border-creme-velado/20 rounded-lg bg-creme-velado dark:bg-verde-escuro-profundo">
-                <input type="color" value={settings.themeColors?.lightButtonBg || '#C0A063'} onChange={(e) => handleColorChange('lightButtonBg', e.target.value)} className="w-8 h-8 p-0 border-none bg-transparent cursor-pointer" style={{ appearance: 'none', WebkitAppearance: 'none' }} />
-                <input type="text" value={settings.themeColors?.lightButtonBg || '#C0A063'} onChange={(e) => handleColorChange('lightButtonBg', e.target.value)} className="w-full font-mono text-sm bg-transparent focus:outline-none" />
-             </div>
-          </div>
-          <div>
-             <label className="block font-sans font-semibold text-sm mb-1 text-marrom-seiva dark:text-creme-velado/80">Botão - Texto (Claro)</label>
-             <div className="flex items-center gap-2 p-2 border-2 border-marrom-seiva/20 dark:border-creme-velado/20 rounded-lg bg-creme-velado dark:bg-verde-escuro-profundo">
-                <input type="color" value={settings.themeColors?.lightButtonText || '#2C3E2A'} onChange={(e) => handleColorChange('lightButtonText', e.target.value)} className="w-8 h-8 p-0 border-none bg-transparent cursor-pointer" style={{ appearance: 'none', WebkitAppearance: 'none' }} />
-                <input type="text" value={settings.themeColors?.lightButtonText || '#2C3E2A'} onChange={(e) => handleColorChange('lightButtonText', e.target.value)} className="w-full font-mono text-sm bg-transparent focus:outline-none" />
-             </div>
-          </div>
-          <div>
-             <label className="block font-sans font-semibold text-sm mb-1 text-marrom-seiva dark:text-creme-velado/80">Botão - Fundo (Escuro)</label>
-             <div className="flex items-center gap-2 p-2 border-2 border-marrom-seiva/20 dark:border-creme-velado/20 rounded-lg bg-creme-velado dark:bg-verde-escuro-profundo">
-                <input type="color" value={settings.themeColors?.darkButtonBg || '#D9C7A6'} onChange={(e) => handleColorChange('darkButtonBg', e.target.value)} className="w-8 h-8 p-0 border-none bg-transparent cursor-pointer" style={{ appearance: 'none', WebkitAppearance: 'none' }} />
-                <input type="text" value={settings.themeColors?.darkButtonBg || '#D9C7A6'} onChange={(e) => handleColorChange('darkButtonBg', e.target.value)} className="w-full font-mono text-sm bg-transparent focus:outline-none" />
-             </div>
-          </div>
-          <div>
-             <label className="block font-sans font-semibold text-sm mb-1 text-marrom-seiva dark:text-creme-velado/80">Botão - Texto (Escuro)</label>
-             <div className="flex items-center gap-2 p-2 border-2 border-marrom-seiva/20 dark:border-creme-velado/20 rounded-lg bg-creme-velado dark:bg-verde-escuro-profundo">
-                <input type="color" value={settings.themeColors?.darkButtonText || '#2C3E2A'} onChange={(e) => handleColorChange('darkButtonText', e.target.value)} className="w-8 h-8 p-0 border-none bg-transparent cursor-pointer" style={{ appearance: 'none', WebkitAppearance: 'none' }} />
-                <input type="text" value={settings.themeColors?.darkButtonText || '#2C3E2A'} onChange={(e) => handleColorChange('darkButtonText', e.target.value)} className="w-full font-mono text-sm bg-transparent focus:outline-none" />
-             </div>
-          </div>
-
-        </div>
-      </div>
-      
-      <div className="bg-branco-nevoa dark:bg-verde-mata p-6 rounded-xl shadow-lg">
-        <h2 className="font-serif text-2xl font-semibold text-verde-mata dark:text-dourado-suave mb-4">Plano de Fundo Global</h2>
-        <div className="flex items-center justify-between mb-4">
-            <p className="font-sans text-sm text-marrom-seiva/80 dark:text-creme-velado/80">Usar imagem de fundo em vez de cor sólida.</p>
-            <label htmlFor="useBackgroundImage" className="flex items-center cursor-pointer"><div className="relative"><input type="checkbox" id="useBackgroundImage" className="sr-only" checked={settings.useBackgroundImage || false} onChange={handleToggleChange} /><div className="block bg-marrom-seiva/20 dark:bg-creme-velado/20 w-14 h-8 rounded-full"></div><div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${settings.useBackgroundImage ? 'translate-x-6 bg-dourado-suave' : ''}`}></div></div></label>
-        </div>
-        {settings.useBackgroundImage && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-marrom-seiva/10 dark:border-creme-velado/10">
-            <FileUpload label="Imagem (Tema Claro)" file={selectedBgImageLight} preview={bgImagePreviewLight} onFileChange={handleFileChange(setSelectedBgImageLight, setBgImagePreviewLight)} currentUrl={settings.backgroundImageUrlLight} accept="image/jpeg, image/png, image/webp" />
-            <FileUpload label="Imagem (Tema Escuro)" file={selectedBgImageDark} preview={bgImagePreviewDark} onFileChange={handleFileChange(setSelectedBgImageDark, setBgImagePreviewDark)} currentUrl={settings.backgroundImageUrlDark} accept="image/jpeg, image/png, image/webp" />
-          </div>
-        )}
-      </div>
-
-      <div className="bg-branco-nevoa dark:bg-verde-mata p-6 rounded-xl shadow-lg">
-        <h2 className="font-serif text-2xl font-semibold text-verde-mata dark:text-dourado-suave mb-4">Fundo de Componentes</h2>
-        <p className="font-sans text-sm text-marrom-seiva/80 dark:text-creme-velado/80 mb-4">Substitui a cor de fundo dos cartões e painéis por uma textura ou imagem.</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <FileUpload label="Textura (Tema Claro)" file={selectedCompBgImageLight} preview={compBgImagePreviewLight} onFileChange={handleFileChange(setSelectedCompBgImageLight, setCompBgImagePreviewLight)} currentUrl={settings.componentBackgroundImageUrlLight} accept="image/jpeg, image/png, image/webp" />
-            <FileUpload label="Textura (Tema Escuro)" file={selectedCompBgImageDark} preview={compBgImagePreviewDark} onFileChange={handleFileChange(setSelectedCompBgImageDark, setCompBgImagePreviewDark)} currentUrl={settings.componentBackgroundImageUrlDark} accept="image/jpeg, image/png, image/webp" />
-        </div>
-      </div>
-
-      <div className="bg-branco-nevoa dark:bg-verde-mata p-6 rounded-xl shadow-lg">
-        <h2 className="font-serif text-2xl font-semibold text-verde-mata dark:text-dourado-suave mb-4">Funcionalidades Inteligentes</h2>
-        <div className="flex items-start justify-between">
-          <div><h3 className="font-sans font-semibold text-verde-mata dark:text-creme-velado">Devocional Diário por IA</h3><p className="text-sm font-sans text-marrom-seiva/80 dark:text-creme-velado/80">Permite que as usuárias acessem um devocional único a cada dia.</p></div>
-          <label htmlFor="isAiDevotionalEnabled" className="flex items-center cursor-pointer"><div className="relative"><input type="checkbox" id="isAiDevotionalEnabled" className="sr-only" checked={settings.isAiDevotionalEnabled || false} onChange={handleToggleChange}/><div className="block bg-marrom-seiva/20 dark:bg-creme-velado/20 w-14 h-8 rounded-full"></div><div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${settings.isAiDevotionalEnabled ? 'translate-x-6 bg-dourado-suave' : ''}`}></div></div></label>
-        </div>
-        {settings.isAiDevotionalEnabled && (
-            <div className="mt-4 pt-4 border-t border-marrom-seiva/10 dark:border-creme-velado/10 space-y-4">
-                <InputField id="aiDevotionalScheduleTime" label="Horário da Geração Diária" type="time" value={settings.aiDevotionalScheduleTime || '06:00'} onChange={handleChange} />
-                <p className="text-xs font-sans text-marrom-seiva/60 dark:text-creme-velado/60 mt-2">Nota: O devocional é gerado na primeira vez que uma usuária abre o app após este horário a cada dia.</p>
-                
-                <div className="mt-4 pt-4 border-t border-marrom-seiva/10 dark:border-creme-velado/10">
-                    <h4 className="font-sans font-semibold text-verde-mata dark:text-creme-velado mb-2">Geração Manual</h4>
-                    <p className="text-sm font-sans text-marrom-seiva/80 dark:text-creme-velado/80 mb-3">
-                        Force a criação de um novo devocional que será publicado imediatamente para todas as usuárias.
-                    </p>
-                    <Button onClick={handleGenerateNow} disabled={isGeneratingDevotional}>
-                        {isGeneratingDevotional ? <Spinner variant="button" /> : 'Gerar Novo Devocional Agora'}
-                    </Button>
+            
+            {settings.useBackgroundImage && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <FileUpload label="Fundo Global (Claro)" file={selectedBgImageLight} preview={bgImagePreviewLight} onFileChange={handleFileChange(setSelectedBgImageLight, setBgImagePreviewLight)} currentUrl={settings.backgroundImageUrlLight} accept="image/*" />
+                    <FileUpload label="Fundo Global (Escuro)" file={selectedBgImageDark} preview={bgImagePreviewDark} onFileChange={handleFileChange(setSelectedBgImageDark, setBgImagePreviewDark)} currentUrl={settings.backgroundImageUrlDark} accept="image/*" />
                 </div>
+            )}
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                <FileUpload label="Fundo de Cards (Claro)" file={selectedCompBgImageLight} preview={compBgImagePreviewLight} onFileChange={handleFileChange(setSelectedCompBgImageLight, setCompBgImagePreviewLight)} currentUrl={settings.componentBackgroundImageUrlLight} accept="image/*" />
+                <FileUpload label="Fundo de Cards (Escuro)" file={selectedCompBgImageDark} preview={compBgImagePreviewDark} onFileChange={handleFileChange(setSelectedCompBgImageDark, setCompBgImagePreviewDark)} currentUrl={settings.componentBackgroundImageUrlDark} accept="image/*" />
             </div>
-        )}
+        </div>
+
+        {/* Colors */}
+        <h3 className="font-sans font-bold text-lg text-marrom-seiva dark:text-creme-velado mb-4">Paleta de Cores</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+             <ColorInput label="Fundo (Claro)" value={settings.themeColors?.lightBg || '#FBF8F1'} onChange={(e) => handleColorChange('lightBg', e.target.value)} onSetTransparent={() => handleSetTransparent('lightBg')} />
+             <ColorInput label="Fundo (Escuro)" value={settings.themeColors?.darkBg || '#1A2918'} onChange={(e) => handleColorChange('darkBg', e.target.value)} onSetTransparent={() => handleSetTransparent('darkBg')} />
+             
+             <ColorInput label="Componentes (Claro)" value={settings.themeColors?.lightComponentBg || '#FAF9F6'} onChange={(e) => handleColorChange('lightComponentBg', e.target.value)} onSetTransparent={() => handleSetTransparent('lightComponentBg')} />
+             <ColorInput label="Componentes (Escuro)" value={settings.themeColors?.darkComponentBg || '#2C3E2A'} onChange={(e) => handleColorChange('darkComponentBg', e.target.value)} onSetTransparent={() => handleSetTransparent('darkComponentBg')} />
+             
+             <ColorInput label="Texto Principal" value={settings.themeColors?.lightText || '#5C3D2E'} onChange={(e) => handleColorChange('lightText', e.target.value)} onSetTransparent={() => handleSetTransparent('lightText')} />
+             
+             <ColorInput label="Destaque/Botões (Claro)" value={settings.themeColors?.lightAccent || '#C0A063'} onChange={(e) => handleColorChange('lightAccent', e.target.value)} onSetTransparent={() => handleSetTransparent('lightAccent')} />
+             <ColorInput label="Destaque/Botões (Escuro)" value={settings.themeColors?.darkAccent || '#D9C7A6'} onChange={(e) => handleColorChange('darkAccent', e.target.value)} onSetTransparent={() => handleSetTransparent('darkAccent')} />
+        </div>
       </div>
       
+      <div className="bg-branco-nevoa dark:bg-verde-mata p-6 rounded-xl shadow-lg">
+        <h2 className="font-serif text-2xl font-semibold text-verde-mata dark:text-dourado-suave mb-4">Cabeçalhos das Páginas</h2>
+        <p className="text-sm font-sans text-marrom-seiva/80 dark:text-creme-velado/80 mb-4">Personalize a imagem e os textos da área de destaque (Hero) de cada página.</p>
+        
+        <div className="space-y-4">
+            <div>
+                <label className="block font-sans font-semibold text-sm mb-2 text-marrom-seiva dark:text-creme-velado/80">Selecionar Página</label>
+                <select 
+                    value={selectedPageId} 
+                    onChange={handlePageSelectChange}
+                    className="w-full font-sans bg-creme-velado dark:bg-verde-escuro-profundo border-2 border-marrom-seiva/20 dark:border-creme-velado/20 rounded-lg p-3 text-marrom-seiva dark:text-creme-velado focus:outline-none focus:ring-2 focus:ring-dourado-suave focus:border-dourado-suave transition-colors"
+                >
+                    {PAGE_OPTIONS.map(opt => <option key={opt.id} value={opt.id}>{opt.label}</option>)}
+                </select>
+            </div>
+
+            <InputField 
+                id="headerTitle" 
+                label="Título Principal" 
+                value={currentHeader.title} 
+                onChange={(e) => handlePageHeaderChange('title', e.target.value)} 
+            />
+            <InputField 
+                id="headerSubtitle" 
+                label="Subtítulo / Descrição" 
+                type="textarea"
+                value={currentHeader.subtitle} 
+                onChange={(e) => handlePageHeaderChange('subtitle', e.target.value)} 
+            />
+            <FileUpload 
+                label="Imagem de Capa" 
+                file={selectedHeaderImage} 
+                preview={headerImagePreview} 
+                onFileChange={handleFileChange(setSelectedHeaderImage, setHeaderImagePreview)} 
+                currentUrl={currentHeader.imageUrl} 
+                accept="image/jpeg, image/png, image/webp" 
+            />
+        </div>
+      </div>
+
+      <div className="bg-branco-nevoa dark:bg-verde-mata p-6 rounded-xl shadow-lg">
+        <h2 className="font-serif text-2xl font-semibold text-verde-mata dark:text-dourado-suave mb-4">Lançamento de Livro</h2>
+        <div className="space-y-4">
+            <InputField 
+                id="bookTitle" 
+                label="Título do Livro" 
+                value={currentBook.bookTitle || ''} 
+                onChange={(e) => handleBookChange('bookTitle', e.target.value)} 
+            />
+             <InputField 
+                id="bookSubtitle" 
+                label="Subtítulo / Frase de Efeito" 
+                value={currentBook.bookSubtitle || ''} 
+                onChange={(e) => handleBookChange('bookSubtitle', e.target.value)} 
+            />
+            <InputField 
+                id="bookPrice" 
+                label="Preço (R$)" 
+                type="number"
+                value={currentBook.bookPrice || 0} 
+                onChange={(e) => handleBookChange('bookPrice', parseFloat(e.target.value))} 
+            />
+            <FileUpload 
+                label="Capa do Livro (Vertical)" 
+                file={selectedBookCover} 
+                preview={bookCoverPreview} 
+                onFileChange={handleFileChange(setSelectedBookCover, setBookCoverPreview)} 
+                currentUrl={currentBook.bookCoverUrl} 
+                accept="image/jpeg, image/png, image/webp" 
+            />
+            <InputField 
+                id="bookSynopsis" 
+                label="Sinopse do Livro" 
+                type="textarea"
+                value={currentBook.bookSynopsis || ''} 
+                onChange={(e) => handleBookChange('bookSynopsis', e.target.value)} 
+                className="h-32"
+            />
+             <div className="pt-4 border-t border-marrom-seiva/10 dark:border-creme-velado/10">
+                 <h3 className="font-sans font-semibold text-marrom-seiva dark:text-creme-velado mb-4">Sobre a Autora</h3>
+                 <InputField 
+                    id="authorName" 
+                    label="Nome da Autora" 
+                    value={currentBook.authorName || ''} 
+                    onChange={(e) => handleBookChange('authorName', e.target.value)} 
+                />
+                <FileUpload 
+                    label="Foto da Autora" 
+                    file={selectedAuthorPhoto} 
+                    preview={authorPhotoPreview} 
+                    onFileChange={handleFileChange(setSelectedAuthorPhoto, setAuthorPhotoPreview)} 
+                    currentUrl={currentBook.authorImageUrl} 
+                    accept="image/jpeg, image/png, image/webp" 
+                />
+                 <InputField 
+                    id="authorBio" 
+                    label="Biografia Curta" 
+                    type="textarea"
+                    value={currentBook.authorBio || ''} 
+                    onChange={(e) => handleBookChange('authorBio', e.target.value)} 
+                />
+             </div>
+        </div>
+      </div>
+
+      <div className="bg-branco-nevoa dark:bg-verde-mata p-6 rounded-xl shadow-lg">
+        <h2 className="font-serif text-2xl font-semibold text-verde-mata dark:text-dourado-suave mb-4">Legal & Rodapé</h2>
+        <p className="text-sm font-sans text-marrom-seiva/80 dark:text-creme-velado/80 mb-4">Edite os textos que aparecem nos popups do rodapé.</p>
+        <div className="space-y-4">
+            <InputField 
+                id="termsOfUse" 
+                label="Termos de Uso" 
+                type="textarea" 
+                value={settings.termsOfUse || ''} 
+                onChange={handleChange} 
+                className="min-h-[300px]"
+            />
+            <InputField 
+                id="privacyPolicy" 
+                label="Política de Privacidade" 
+                type="textarea" 
+                value={settings.privacyPolicy || ''} 
+                onChange={handleChange} 
+                 className="min-h-[300px]"
+            />
+             <InputField 
+                id="contactInfo" 
+                label="Informações de Contato" 
+                type="textarea" 
+                value={settings.contactInfo || ''} 
+                onChange={handleChange} 
+                 className="min-h-[300px]"
+            />
+        </div>
+      </div>
+
       <div className="flex justify-end items-center gap-4">
         {saveSuccess && <p className="text-sm font-semibold text-green-600 dark:text-green-400">Alterações salvas com sucesso!</p>}
         <Button onClick={handleSave} disabled={isSaving}>

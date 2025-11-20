@@ -1,18 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, Notification, Page, CommunityPost, Event, UserNotificationSettings } from '../types';
+import { User, Notification, Page, CommunityPost, Event, UserNotificationSettings, ReadingPlan, UserReadingPlanProgress, UserPlaylist, ContentItem } from '../types';
 import Spinner from '../components/Spinner';
 import Modal from '../components/Modal';
 import InputField from '../components/InputField';
 import Button from '../components/Button';
-import { getNotifications, getCommunityPosts, updateCommunityPost, deleteCommunityPost, getEvents } from '../services/api';
+import { getNotifications, getCommunityPosts, updateCommunityPost, deleteCommunityPost, getEvents, getReadingPlans, getAllUserReadingProgress, getContentItem } from '../services/api';
 import { updateUserProfileDocument } from '../services/authService';
 import { uploadImage } from '../services/storageService';
 import { clearAppCacheAndReload } from '../services/cacheService';
-import { BookmarkIcon, UserCircleIcon, BellIcon, PrayingHandsIcon, PencilIcon, TrashIcon, CalendarDaysIcon, CameraIcon, MapPinIcon, HomeModernIcon, InstagramIcon, FacebookIcon, Cog8ToothIcon, SparklesIcon } from '../components/Icons';
+import { BookmarkIcon, UserCircleIcon, BellIcon, PrayingHandsIcon, PencilIcon, TrashIcon, CalendarDaysIcon, CameraIcon, MapPinIcon, HomeModernIcon, InstagramIcon, FacebookIcon, WhatsAppIcon, Cog8ToothIcon, SparklesIcon, QueueListIcon, AcademicCapIcon, PlayCircleIcon, UsersIcon, ChatBubbleIcon, HeartIcon } from '../components/Icons';
 import ConfirmationModal from '../components/ConfirmationModal';
 import ProgressBar from '../components/ProgressBar';
 import * as pushService from '../services/pushService';
 import { LEVELS } from '../services/gamificationService';
+import PlanCard from '../components/PlanCard';
 
 interface ProfileProps {
     user: User | null;
@@ -52,12 +53,41 @@ const PrayerRequestCard: React.FC<{ post: CommunityPost; onEdit: (post: Communit
             <h3 className="font-serif font-semibold text-verde-mata dark:text-creme-velado">{post.title}</h3>
             <p className="font-sans text-sm text-marrom-seiva/80 dark:text-creme-velado/80 mt-1 line-clamp-2">{post.body}</p>
             {post.isAnonymous && <span className="text-xs italic text-marrom-seiva/60 dark:text-creme-velado/60 mt-1 block">(Publicado anonimamente)</span>}
+             <div className="flex items-center gap-3 mt-2 text-xs text-marrom-seiva/60 dark:text-creme-velado/60">
+                <span className="flex items-center gap-1"><PrayingHandsIcon className="w-3 h-3" /> {post.reactions.length}</span>
+                <span className="flex items-center gap-1"><ChatBubbleIcon className="w-3 h-3" /> {post.comments.length}</span>
+            </div>
         </div>
         <div className="flex-shrink-0 flex items-center space-x-1">
             <button onClick={() => onEdit(post)} className="p-2 text-marrom-seiva/70 hover:text-dourado-suave dark:text-creme-velado/70 dark:hover:text-dourado-suave">
                 <PencilIcon className="w-5 h-5" />
             </button>
             <button onClick={() => onDelete(post)} className="p-2 text-marrom-seiva/70 hover:text-red-500 dark:text-creme-velado/70 dark:hover:text-red-500">
+                <TrashIcon className="w-5 h-5" />
+            </button>
+        </div>
+    </div>
+);
+
+const StudyCard: React.FC<{ post: CommunityPost; onEdit: (post: CommunityPost) => void; onDelete: (post: CommunityPost) => void; }> = ({ post, onEdit, onDelete }) => (
+    <div className="bg-branco-nevoa dark:bg-verde-mata p-5 rounded-xl shadow border border-marrom-seiva/5 dark:border-creme-velado/5 flex justify-between items-start gap-4">
+        <div className="flex-1">
+             <div className="flex items-center gap-2 mb-1">
+                <span className="bg-dourado-suave/20 text-dourado-suave text-[10px] font-bold uppercase px-2 py-0.5 rounded-full">Estudo</span>
+                <span className="text-xs text-marrom-seiva/50 dark:text-creme-velado/50">{new Date(post.createdAt).toLocaleDateString('pt-BR')}</span>
+            </div>
+            <h3 className="font-serif font-semibold text-lg text-verde-mata dark:text-creme-velado">{post.title}</h3>
+            <p className="font-sans text-sm text-marrom-seiva/80 dark:text-creme-velado/80 mt-1 line-clamp-2">{post.body}</p>
+            <div className="flex items-center gap-4 mt-3 text-xs font-semibold text-marrom-seiva/60 dark:text-creme-velado/60">
+                <span className="flex items-center gap-1"><HeartIcon className="w-3.5 h-3.5" /> {post.reactions.length} Apoios</span>
+                <span className="flex items-center gap-1"><ChatBubbleIcon className="w-3.5 h-3.5" /> {post.comments.length} Comentários</span>
+            </div>
+        </div>
+        <div className="flex-shrink-0 flex flex-col gap-1">
+            <button onClick={() => onEdit(post)} className="p-2 text-marrom-seiva/70 hover:text-dourado-suave dark:text-creme-velado/70 dark:hover:text-dourado-suave rounded-lg hover:bg-marrom-seiva/5">
+                <PencilIcon className="w-5 h-5" />
+            </button>
+            <button onClick={() => onDelete(post)} className="p-2 text-marrom-seiva/70 hover:text-red-500 dark:text-creme-velado/70 dark:hover:text-red-500 rounded-lg hover:bg-marrom-seiva/5">
                 <TrashIcon className="w-5 h-5" />
             </button>
         </div>
@@ -95,21 +125,31 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
   const [updateError, setUpdateError] = useState('');
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
-  const [activeTab, setActiveTab] = useState<'meus' | 'salvos' | 'notificacoes' | 'oracoes' | 'eventos' | 'configuracoes'>('meus');
+  const [activeTab, setActiveTab] = useState<'meus' | 'salvos' | 'notificacoes' | 'oracoes' | 'estudos' | 'eventos' | 'configuracoes' | 'planos' | 'playlists'>('meus');
   
   // Data States
   const [allTestimonials, setAllTestimonials] = useState<CommunityPost[]>([]);
   const [prayerRequests, setPrayerRequests] = useState<CommunityPost[]>([]);
+  const [myStudies, setMyStudies] = useState<CommunityPost[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [myEvents, setMyEvents] = useState<Event[]>([]);
+  const [myPlans, setMyPlans] = useState<ReadingPlan[]>([]);
+  const [plansProgress, setPlansProgress] = useState<UserReadingPlanProgress[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
-  // Prayer Request management
+  // Playlist View State
+  const [viewingPlaylist, setViewingPlaylist] = useState<UserPlaylist | null>(null);
+  const [playlistItems, setPlaylistItems] = useState<ContentItem[]>([]);
+  const [isLoadingPlaylistItems, setIsLoadingPlaylistItems] = useState(false);
+
+  // Prayer/Study Request management
   const [isPrayerFormOpen, setIsPrayerFormOpen] = useState(false);
-  const [editingPrayer, setEditingPrayer] = useState<CommunityPost | null>(null);
-  const [prayerTitle, setPrayerTitle] = useState('');
-  const [prayerBody, setPrayerBody] = useState('');
-  const [isPrayerAnonymous, setIsPrayerAnonymous] = useState(false);
+  const [isStudyFormOpen, setIsStudyFormOpen] = useState(false);
+  const [editingPost, setEditingPost] = useState<CommunityPost | null>(null);
+  const [postTitle, setPostTitle] = useState('');
+  const [postBody, setPostBody] = useState('');
+  const [isAnonymous, setIsAnonymous] = useState(false);
+  
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
   const [postToDelete, setPostToDelete] = useState<CommunityPost | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -126,16 +166,27 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
   const fetchProfileData = async () => {
       if (!user) return;
       setIsLoadingData(true);
-      const [posts, notifs, prayers, allEvents] = await Promise.all([
+      const [posts, notifs, prayers, studies, allEvents, allPlans, allProgress] = await Promise.all([
           getCommunityPosts('testemunhos'),
           getNotifications(),
           getCommunityPosts('oracao'),
+          getCommunityPosts('estudos'),
           getEvents(),
+          getReadingPlans(),
+          getAllUserReadingProgress(user.id)
       ]);
       setAllTestimonials(posts);
       setNotifications(notifs);
       setPrayerRequests(prayers);
+      setMyStudies(studies.filter(p => p.author.id === user.id));
       setMyEvents(allEvents.filter(e => e.attendeeIds.includes(user.id)));
+      
+      // Filter plans where user has made progress
+      const startedPlanIds = allProgress.map(p => p.planId);
+      const startedPlans = allPlans.filter(p => startedPlanIds.includes(p.id));
+      setMyPlans(startedPlans);
+      setPlansProgress(allProgress);
+
       setIsLoadingData(false);
   }
 
@@ -226,23 +277,31 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
 
 
   const handleOpenPrayerForm = (post: CommunityPost) => {
-      setEditingPrayer(post);
-      setPrayerTitle(post.title);
-      setPrayerBody(post.body);
-      setIsPrayerAnonymous(post.isAnonymous || false);
+      setEditingPost(post);
+      setPostTitle(post.title);
+      setPostBody(post.body);
+      setIsAnonymous(post.isAnonymous || false);
       setIsPrayerFormOpen(true);
   };
+  
+  const handleOpenStudyForm = (post: CommunityPost) => {
+      setEditingPost(post);
+      setPostTitle(post.title);
+      setPostBody(post.body);
+      setIsStudyFormOpen(true);
+  };
 
-  const handleUpdatePrayer = async () => {
-      if (!editingPrayer) return;
+  const handleUpdatePost = async () => {
+      if (!editingPost) return;
       setIsSubmitting(true);
-      await updateCommunityPost(editingPrayer.id, {
-          title: prayerTitle,
-          body: prayerBody,
-          isAnonymous: isPrayerAnonymous,
+      await updateCommunityPost(editingPost.id, {
+          title: postTitle,
+          body: postBody,
+          isAnonymous: isAnonymous, // Ignored for studies, but harmless
       });
       setIsPrayerFormOpen(false);
-      setEditingPrayer(null);
+      setIsStudyFormOpen(false);
+      setEditingPost(null);
       fetchProfileData();
       setIsSubmitting(false);
   };
@@ -335,6 +394,31 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
     await clearAppCacheAndReload();
   };
 
+  const handleOpenPlaylist = async (playlist: UserPlaylist) => {
+      setViewingPlaylist(playlist);
+      setIsLoadingPlaylistItems(true);
+      try {
+          // Fetch items in parallel. 
+          const items = await Promise.all(playlist.contentIds.map(id => getContentItem(id)));
+          // Filter out undefined (if item was deleted)
+          setPlaylistItems(items.filter((i): i is ContentItem => !!i));
+      } catch (e) {
+          console.error("Error loading playlist items", e);
+      } finally {
+          setIsLoadingPlaylistItems(false);
+      }
+  };
+
+  const handleDeletePlaylist = async (playlistId: string) => {
+      if (!user) return;
+      if (confirm("Tem certeza que deseja excluir esta playlist?")) {
+          const newPlaylists = user.playlists.filter(p => p.id !== playlistId);
+          await updateUserProfileDocument(user.id, { playlists: newPlaylists });
+          await onUserUpdate({ playlists: newPlaylists });
+          if (viewingPlaylist?.id === playlistId) setViewingPlaylist(null);
+      }
+  };
+
 
   if (!user) {
     return <div className="flex items-center justify-center h-full"><Spinner /></div>;
@@ -377,6 +461,20 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
                          <div className="mt-4 flex justify-center sm:justify-start items-center gap-4">
                             {user.socialLinks?.instagram && <a href={`https://instagram.com/${user.socialLinks.instagram}`} target="_blank" rel="noopener noreferrer" className="text-marrom-seiva/70 hover:text-dourado-suave dark:text-creme-velado/70 dark:hover:text-dourado-suave"><InstagramIcon className="w-6 h-6" /></a>}
                             {user.socialLinks?.facebook && <a href={`https://facebook.com/${user.socialLinks.facebook}`} target="_blank" rel="noopener noreferrer" className="text-marrom-seiva/70 hover:text-dourado-suave dark:text-creme-velado/70 dark:hover:text-dourado-suave"><FacebookIcon className="w-6 h-6" /></a>}
+                            {user.socialLinks?.whatsapp && (
+                                <a 
+                                    href={`https://wa.me/${
+                                        user.socialLinks.whatsapp.replace(/\D/g, '').length <= 11 
+                                        ? '55' + user.socialLinks.whatsapp.replace(/\D/g, '') 
+                                        : user.socialLinks.whatsapp.replace(/\D/g, '')
+                                    }`} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className="text-marrom-seiva/70 hover:text-dourado-suave dark:text-creme-velado/70 dark:hover:text-dourado-suave"
+                                >
+                                    <WhatsAppIcon className="w-6 h-6" />
+                                </a>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -390,7 +488,8 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
                         </div>
                         <button onClick={() => onNavigate('myGarden')} className="text-sm font-semibold text-dourado-suave hover:underline">Ver completo</button>
                     </div>
-                    <div className="bg-creme-velado/50 dark:bg-verde-escuro-profundo/50 p-4 rounded-lg">
+                    {/* Removed background opacity classes here */}
+                    <div className="p-4 rounded-lg border border-marrom-seiva/5 dark:border-creme-velado/5">
                          <div className="flex justify-between items-center font-sans text-sm font-semibold text-marrom-seiva/80 dark:text-creme-velado/80 mb-2">
                             <span>{user.gardenLevelName || "Semente Plantada"}</span>
                             <span>{user.experience || 0} XP</span>
@@ -417,6 +516,15 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
                         <button onClick={() => setActiveTab('oracoes')} className={`snap-center flex-shrink-0 flex items-center gap-2 whitespace-nowrap py-2 px-5 rounded-full font-sans font-semibold text-sm transition-all duration-200 border ${activeTab === 'oracoes' ? 'bg-dourado-suave text-verde-mata border-dourado-suave shadow-md' : 'bg-branco-nevoa dark:bg-verde-mata/50 text-marrom-seiva/70 dark:text-creme-velado/70 border-marrom-seiva/10 dark:border-creme-velado/10 hover:bg-dourado-suave/20 hover:border-dourado-suave/30'}`}>
                             <PrayingHandsIcon className="w-4 h-4" /> Meus Pedidos
                         </button>
+                        <button onClick={() => setActiveTab('estudos')} className={`snap-center flex-shrink-0 flex items-center gap-2 whitespace-nowrap py-2 px-5 rounded-full font-sans font-semibold text-sm transition-all duration-200 border ${activeTab === 'estudos' ? 'bg-dourado-suave text-verde-mata border-dourado-suave shadow-md' : 'bg-branco-nevoa dark:bg-verde-mata/50 text-marrom-seiva/70 dark:text-creme-velado/70 border-marrom-seiva/10 dark:border-creme-velado/10 hover:bg-dourado-suave/20 hover:border-dourado-suave/30'}`}>
+                            <UsersIcon className="w-4 h-4" /> Meus Estudos
+                        </button>
+                        <button onClick={() => setActiveTab('planos')} className={`snap-center flex-shrink-0 flex items-center gap-2 whitespace-nowrap py-2 px-5 rounded-full font-sans font-semibold text-sm transition-all duration-200 border ${activeTab === 'planos' ? 'bg-dourado-suave text-verde-mata border-dourado-suave shadow-md' : 'bg-branco-nevoa dark:bg-verde-mata/50 text-marrom-seiva/70 dark:text-creme-velado/70 border-marrom-seiva/10 dark:border-creme-velado/10 hover:bg-dourado-suave/20 hover:border-dourado-suave/30'}`}>
+                            <AcademicCapIcon className="w-4 h-4" /> Meus Planos
+                        </button>
+                        <button onClick={() => setActiveTab('playlists')} className={`snap-center flex-shrink-0 flex items-center gap-2 whitespace-nowrap py-2 px-5 rounded-full font-sans font-semibold text-sm transition-all duration-200 border ${activeTab === 'playlists' ? 'bg-dourado-suave text-verde-mata border-dourado-suave shadow-md' : 'bg-branco-nevoa dark:bg-verde-mata/50 text-marrom-seiva/70 dark:text-creme-velado/70 border-marrom-seiva/10 dark:border-creme-velado/10 hover:bg-dourado-suave/20 hover:border-dourado-suave/30'}`}>
+                            <QueueListIcon className="w-4 h-4" /> Minhas Playlists
+                        </button>
                         <button onClick={() => setActiveTab('salvos')} className={`snap-center flex-shrink-0 flex items-center gap-2 whitespace-nowrap py-2 px-5 rounded-full font-sans font-semibold text-sm transition-all duration-200 border ${activeTab === 'salvos' ? 'bg-dourado-suave text-verde-mata border-dourado-suave shadow-md' : 'bg-branco-nevoa dark:bg-verde-mata/50 text-marrom-seiva/70 dark:text-creme-velado/70 border-marrom-seiva/10 dark:border-creme-velado/10 hover:bg-dourado-suave/20 hover:border-dourado-suave/30'}`}>
                             <BookmarkIcon className="w-4 h-4" /> Salvos
                         </button>
@@ -442,12 +550,63 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
                     <p className="text-center p-8 text-marrom-seiva/70 dark:text-creme-velado/70 animate-fade-in">Você ainda não publicou nenhum testemunho.</p>
                 )}
 
-                    {!isLoadingData && activeTab === 'oracoes' && (
+                {!isLoadingData && activeTab === 'oracoes' && (
                     myPrayerRequests.length > 0 ?
                     <div className="space-y-4 animate-fade-in-up">
                         {myPrayerRequests.map(post => <PrayerRequestCard key={post.id} post={post} onEdit={handleOpenPrayerForm} onDelete={handleOpenConfirmDelete} />)}
                     </div> :
                     <p className="text-center p-8 text-marrom-seiva/70 dark:text-creme-velado/70 animate-fade-in">Você ainda não fez nenhum pedido de oração.</p>
+                )}
+                
+                {!isLoadingData && activeTab === 'estudos' && (
+                    myStudies.length > 0 ?
+                    <div className="space-y-4 animate-fade-in-up">
+                        {myStudies.map(post => <StudyCard key={post.id} post={post} onEdit={handleOpenStudyForm} onDelete={handleOpenConfirmDelete} />)}
+                    </div> :
+                    <p className="text-center p-8 text-marrom-seiva/70 dark:text-creme-velado/70 animate-fade-in">Você ainda não iniciou nenhum grupo de estudo.</p>
+                )}
+
+                {!isLoadingData && activeTab === 'planos' && (
+                    myPlans.length > 0 ?
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 animate-fade-in-up">
+                        {myPlans.map(plan => {
+                             const progress = plansProgress.find(p => p.planId === plan.id);
+                             return (
+                                <PlanCard 
+                                    key={plan.id} 
+                                    plan={plan} 
+                                    progress={progress} 
+                                    onClick={() => onNavigate('planDetail', plan.id)} 
+                                />
+                             );
+                        })}
+                    </div> :
+                    <p className="text-center p-8 text-marrom-seiva/70 dark:text-creme-velado/70 animate-fade-in">Você ainda não iniciou nenhum plano de leitura.</p>
+                )}
+
+                {!isLoadingData && activeTab === 'playlists' && (
+                    user.playlists.length > 0 ?
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in-up">
+                        {user.playlists.map(playlist => (
+                            <div key={playlist.id} onClick={() => handleOpenPlaylist(playlist)} className="bg-branco-nevoa dark:bg-verde-mata p-6 rounded-xl shadow-lg cursor-pointer hover:scale-105 transition-transform">
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <h3 className="font-serif font-bold text-xl text-verde-mata dark:text-creme-velado">{playlist.name}</h3>
+                                        <p className="text-sm text-marrom-seiva/70 dark:text-creme-velado/70 font-sans mt-1">{playlist.contentIds.length} itens</p>
+                                    </div>
+                                    <button onClick={(e) => { e.stopPropagation(); handleDeletePlaylist(playlist.id); }} className="text-marrom-seiva/50 hover:text-red-500 dark:text-creme-velado/50 dark:hover:text-red-500">
+                                        <TrashIcon className="w-5 h-5" />
+                                    </button>
+                                </div>
+                                <div className="mt-4 flex -space-x-2 overflow-hidden">
+                                    <div className="inline-block h-8 w-8 rounded-full ring-2 ring-white dark:ring-verde-escuro-profundo bg-dourado-suave/20 flex items-center justify-center text-xs font-bold text-dourado-suave">
+                                        <QueueListIcon className="w-4 h-4" />
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div> :
+                    <p className="text-center p-8 text-marrom-seiva/70 dark:text-creme-velado/70 animate-fade-in">Você ainda não criou nenhuma playlist.</p>
                 )}
 
                 {!isLoadingData && activeTab === 'salvos' && (
@@ -547,13 +706,14 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
     </div>
     
     <Modal isOpen={isEditModalOpen} onClose={() => setEditModalOpen(false)} title="Editar Perfil">
-        <div className="space-y-4">
+        <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
             <InputField id="fullName" label="Nome" value={editedUser.fullName || ''} onChange={(e) => setEditedUser({...editedUser, fullName: e.target.value})} />
             <InputField id="biography" label="Sua Bio" type="textarea" value={editedUser.biography || ''} onChange={(e) => setEditedUser({...editedUser, biography: e.target.value})} />
             <InputField id="cidade" label="Cidade e Estado" placeholder="Ex: São Paulo, SP" value={editedUser.cidade || ''} onChange={(e) => setEditedUser({...editedUser, cidade: e.target.value})} />
             <InputField id="igreja" label="Sua Igreja" placeholder="Ex: Igreja da Cidade" value={editedUser.igreja || ''} onChange={(e) => setEditedUser({...editedUser, igreja: e.target.value})} />
             <InputField id="instagram" label="Instagram (usuário)" value={editedUser.socialLinks?.instagram || ''} onChange={(e) => setEditedUser({...editedUser, socialLinks: {...(editedUser.socialLinks || {}), instagram: e.target.value}})} />
             <InputField id="facebook" label="Facebook (usuário)" value={editedUser.socialLinks?.facebook || ''} onChange={(e) => setEditedUser({...editedUser, socialLinks: {...(editedUser.socialLinks || {}), facebook: e.target.value}})} />
+            <InputField id="whatsapp" label="WhatsApp (apenas números)" value={editedUser.socialLinks?.whatsapp || ''} onChange={(e) => setEditedUser({...editedUser, socialLinks: {...(editedUser.socialLinks || {}), whatsapp: e.target.value.replace(/\D/g, '')}})} />
         </div>
         {updateError && <p className="text-red-500 text-sm text-center mt-4">{updateError}</p>}
         <div className="mt-6 flex justify-end space-x-4">
@@ -564,20 +724,68 @@ export default function Profile({ user, onUserUpdate, onNavigate, onViewTestimon
         </div>
     </Modal>
     
+    {/* ... rest of modals ... */}
     <Modal isOpen={isPrayerFormOpen} onClose={() => setIsPrayerFormOpen(false)} title="Editar Pedido de Oração">
         <div className="space-y-4">
-            <InputField id="prayerTitle" label="Título do Pedido" value={prayerTitle} onChange={(e) => setPrayerTitle(e.target.value)} />
-            <InputField id="prayerBody" label="Descrição" type="textarea" value={prayerBody} onChange={(e) => setPrayerBody(e.target.value)} />
+            <InputField id="prayerTitle" label="Título do Pedido" value={postTitle} onChange={(e) => setPostTitle(e.target.value)} />
+            <InputField id="prayerBody" label="Descrição" type="textarea" value={postBody} onChange={(e) => setPostBody(e.target.value)} />
             <div className="flex items-center">
-                <input type="checkbox" id="isPrayerAnonymous" checked={isPrayerAnonymous} onChange={(e) => setIsPrayerAnonymous(e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-dourado-suave focus:ring-dourado-suave"/>
+                <input type="checkbox" id="isPrayerAnonymous" checked={isAnonymous} onChange={(e) => setIsAnonymous(e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-dourado-suave focus:ring-dourado-suave"/>
                 <label htmlFor="isPrayerAnonymous" className="ml-2 block text-sm font-sans text-marrom-seiva dark:text-creme-velado/80">Publicar anonimamente</label>
             </div>
         </div>
         <div className="mt-6 flex justify-end space-x-4">
             <Button variant="secondary" onClick={() => setIsPrayerFormOpen(false)} disabled={isSubmitting}>Cancelar</Button>
-            <Button variant="primary" onClick={handleUpdatePrayer} disabled={isSubmitting}>
+            <Button variant="primary" onClick={handleUpdatePost} disabled={isSubmitting}>
                 {isSubmitting ? <Spinner variant="button" /> : 'Salvar'}
             </Button>
+        </div>
+    </Modal>
+    
+     <Modal isOpen={isStudyFormOpen} onClose={() => setIsStudyFormOpen(false)} title="Editar Tópico de Estudo">
+        <div className="space-y-4">
+            <InputField id="studyTitle" label="Título do Tópico" value={postTitle} onChange={(e) => setPostTitle(e.target.value)} />
+            <InputField id="studyBody" label="Conteúdo" type="textarea" value={postBody} onChange={(e) => setPostBody(e.target.value)} />
+        </div>
+        <div className="mt-6 flex justify-end space-x-4">
+            <Button variant="secondary" onClick={() => setIsStudyFormOpen(false)} disabled={isSubmitting}>Cancelar</Button>
+            <Button variant="primary" onClick={handleUpdatePost} disabled={isSubmitting}>
+                {isSubmitting ? <Spinner variant="button" /> : 'Salvar'}
+            </Button>
+        </div>
+    </Modal>
+    
+    {/* Playlist Content Modal */}
+    <Modal isOpen={!!viewingPlaylist} onClose={() => setViewingPlaylist(null)} title={viewingPlaylist?.name || "Playlist"}>
+        <div className="max-h-[70vh] overflow-y-auto">
+            {isLoadingPlaylistItems ? <Spinner /> : 
+            playlistItems.length > 0 ? (
+                <div className="space-y-3">
+                    {playlistItems.map(item => (
+                        <div 
+                            key={item.id} 
+                            onClick={() => onNavigate('contentDetail', item.id)}
+                            className="flex items-center gap-3 p-3 bg-creme-velado dark:bg-verde-escuro-profundo rounded-lg cursor-pointer hover:bg-dourado-suave/10"
+                        >
+                            <div className="relative w-12 h-12 flex-shrink-0">
+                                <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover rounded" />
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded">
+                                    <PlayCircleIcon className="w-6 h-6 text-white" />
+                                </div>
+                            </div>
+                            <div>
+                                <h4 className="font-serif font-semibold text-sm text-verde-mata dark:text-creme-velado line-clamp-1">{item.title}</h4>
+                                <p className="text-xs text-marrom-seiva/70 dark:text-creme-velado/70 uppercase">{item.type}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <p className="text-center text-sm text-marrom-seiva/70 dark:text-creme-velado/70 p-4">Esta playlist está vazia.</p>
+            )}
+        </div>
+        <div className="mt-4 flex justify-end">
+            <Button variant="secondary" onClick={() => setViewingPlaylist(null)}>Fechar</Button>
         </div>
     </Modal>
 

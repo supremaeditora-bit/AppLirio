@@ -2,7 +2,7 @@
 import {
   User, ContentItem, CommunityPost, Notification, Role, LiveSession, AppearanceSettings,
   Challenge, UserChallengeCompletion, Comment, ReadingPlan, UserReadingPlanProgress, Event, JournalEntry, Announcement,
-  ContentType
+  ContentType, UserStatus
 } from '../types';
 import { supabase } from './supabaseClient';
 
@@ -35,6 +35,78 @@ const defaultAppearanceSettings: AppearanceSettings = {
     backgroundImageUrlDark: '',
     componentBackgroundImageUrlLight: '',
     componentBackgroundImageUrlDark: '',
+    faq: [
+        {
+            id: '1',
+            question: "O que é a Escola Lírios do Vale?",
+            answer: "A Escola Lírios do Vale (ELV) é um ecossistema espiritual dedicado a restaurar e formar mulheres em sabedoria cristã prática. Oferecemos devocionais, mentorias, estudos bíblicos e uma comunidade segura para crescimento espiritual e emocional."
+        },
+        {
+            id: '2',
+            question: "Como funcionam os devocionais diários?",
+            answer: "Todos os dias, você receberá um novo devocional com um tema específico, versículo bíblico, reflexão, oração e um desafio prático. Você pode marcar como concluído para acompanhar seu progresso no 'Meu Jardim'."
+        }
+    ],
+    termsOfUse: "Estes termos de uso regem seu acesso e uso da plataforma Escola Lírios do Vale. Ao acessar ou usar o serviço, você concorda em ficar vinculado a estes termos. O conteúdo disponibilizado é para edificação pessoal e crescimento espiritual. Comportamentos desrespeitosos na comunidade não serão tolerados.",
+    privacyPolicy: "Sua privacidade é importante para nós. A Escola Lírios do Vale coleta apenas os dados necessários para personalizar sua experiência (nome, e-mail, progresso). Não compartilhamos seus dados pessoais com terceiros para fins comerciais. Seus registros no Diário Espiritual são privados e criptografados.",
+    contactInfo: "Para suporte, dúvidas ou sugestões, entre em contato conosco:\n\nE-mail: contato@escolaliriosdovale.com\nWhatsApp: (11) 99999-9999\nHorário de atendimento: Seg a Sex, das 9h às 18h.",
+    pageHeaders: {
+        mentorships: {
+            title: 'Mentorias',
+            subtitle: 'Cursos e trilhas de conhecimento para guiar sua jornada de crescimento.',
+            imageUrl: 'https://images.unsplash.com/photo-1531545514256-b1400bc00f31?q=80&w=1374&auto=format&fit=crop'
+        },
+        prayers: {
+            title: 'Pedidos de Oração',
+            subtitle: '"Orai uns pelos outros, para que sareis." Compartilhe suas necessidades e interceda pelos irmãos.',
+            imageUrl: 'https://images.unsplash.com/photo-1605170448304-2570e8b7d10c?q=80&w=1370&auto=format&fit=crop'
+        },
+        studies: {
+            title: 'Grupos de Estudo',
+            subtitle: 'Debata a Palavra, compartilhe insights e cresça em comunhão.',
+            imageUrl: 'https://images.unsplash.com/photo-1455390582262-044cdead277a?q=80&w=1373&auto=format&fit=crop'
+        },
+        testimonials: {
+            title: 'Testemunhos de Fé',
+            subtitle: 'Histórias reais de transformação e graça. Compartilhe a sua também.',
+            imageUrl: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?q=80&w=1632&auto=format&fit=crop'
+        },
+        readingPlans: {
+            title: 'Planos de Leitura',
+            subtitle: 'Aprofunde-se nas Escrituras com roteiros guiados para fortalecer sua fé diariamente.',
+            imageUrl: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?q=80&w=1473&auto=format&fit=crop'
+        },
+        events: {
+            title: 'Eventos',
+            subtitle: 'Participe de nossas conferências, workshops e encontros para crescer em comunhão.',
+            imageUrl: 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?q=80&w=1470&auto=format&fit=crop'
+        },
+        podcasts: {
+            title: 'Podcasts',
+            subtitle: 'Ouça palavras de sabedoria onde quer que você esteja.',
+            imageUrl: 'https://images.unsplash.com/photo-1590602847861-e3596f1914ce?q=80&w=1332&auto=format&fit=crop'
+        },
+        journal: {
+            title: 'Meu Diário',
+            subtitle: 'Seu jardim secreto de reflexões e gratidão.',
+            imageUrl: 'https://images.unsplash.com/photo-1517842645767-c639042777db?q=80&w=1470&auto=format&fit=crop'
+        },
+        bookLaunch: {
+            title: 'Lançamento',
+            subtitle: 'Conheça a nossa mais nova obra literária.',
+            imageUrl: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?q=80&w=1470&auto=format&fit=crop'
+        }
+    },
+    bookLaunch: {
+        bookTitle: "Floresça no Vale",
+        bookSubtitle: "Sabedoria para tempos áridos",
+        bookCoverUrl: "https://images.unsplash.com/photo-1544947950-fa07a98d237f?q=80&w=800&auto=format&fit=crop",
+        bookPrice: 49.90,
+        bookSynopsis: "Um guia prático e espiritual para mulheres que desejam encontrar propósito em meio às dificuldades. Com base em ensinamentos bíblicos e experiências reais, este livro é um convite para transformar seu deserto em um jardim florescente.",
+        authorName: "Ana Clara Rocha",
+        authorBio: "Fundadora da Escola Lírios do Vale, mentora de mulheres e apaixonada por ensinar a Palavra de Deus de forma simples e profunda.",
+        authorImageUrl: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=1470&auto=format&fit=crop"
+    }
 };
 
 // --- UTILS: snake_case <-> camelCase ---
@@ -156,6 +228,11 @@ export const getAllUsers = async (): Promise<User[]> => {
 export const updateUserRole = async (userId: string, role: Role): Promise<void> => {
     const { error } = await supabase.from('profiles').update({ role }).eq('id', userId);
     handleSupabaseError(error, 'updateUserRole');
+};
+
+export const updateUserStatus = async (userId: string, status: UserStatus): Promise<void> => {
+    const { error } = await supabase.from('profiles').update({ status }).eq('id', userId);
+    handleSupabaseError(error, 'updateUserStatus');
 };
 
 // --- Content API ---
@@ -310,6 +387,23 @@ export const markNotificationAsRead = async (notificationId: string, userId: str
      }
 };
 
+// Realtime Notification Helper
+export const subscribeToNotifications = (
+    onInsert: (notification: Notification) => void
+) => {
+    return supabase
+        .channel('public:notifications')
+        .on(
+            'postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'notifications' },
+            (payload) => {
+                const newNotification = convertKeysToCamelCase<Notification>(payload.new);
+                onInsert(newNotification);
+            }
+        )
+        .subscribe();
+};
+
 export const getLiveSessions = async (): Promise<LiveSession[]> => {
     try {
         const { data, error } = await supabase.from('live_sessions').select('*').order('scheduled_at', { ascending: false });
@@ -433,7 +527,22 @@ export const getAppearanceSettings = async (): Promise<AppearanceSettings> => {
             throw error;
         }
         const settings = data ? convertKeysToCamelCase<Partial<AppearanceSettings>>(data.settings) : {};
-        return { ...defaultAppearanceSettings, ...settings };
+        
+        // Ensure pageHeaders defaults are merged if missing in DB
+        const mergedSettings = { 
+            ...defaultAppearanceSettings, 
+            ...settings,
+            pageHeaders: {
+                ...defaultAppearanceSettings.pageHeaders,
+                ...(settings.pageHeaders || {})
+            },
+            bookLaunch: {
+                ...defaultAppearanceSettings.bookLaunch,
+                ...(settings.bookLaunch || {})
+            }
+        };
+        
+        return mergedSettings;
     } catch (error: any) {
         console.warn(`Could not fetch appearance settings: ${error.message}`);
         return defaultAppearanceSettings;
@@ -451,18 +560,6 @@ export const updateAppearanceSettings = async (updates: Partial<AppearanceSettin
 };
 
 // --- Push Notifications ---
-// NOTE: You need to create a `push_subscriptions` table in Supabase.
-// SQL:
-// CREATE TABLE push_subscriptions (
-//   endpoint TEXT PRIMARY KEY,
-//   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
-//   subscription_data JSONB NOT NULL,
-//   created_at TIMESTAMPTZ DEFAULT NOW()
-// );
-// ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
-// CREATE POLICY "Users can manage their own subscriptions" ON push_subscriptions
-//   FOR ALL USING (auth.uid() = user_id);
-
 export const savePushSubscription = async (userId: string, subscription: PushSubscription): Promise<void> => {
     const subscriptionData = subscription.toJSON();
     const { error } = await supabase

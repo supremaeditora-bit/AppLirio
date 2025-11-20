@@ -1,8 +1,14 @@
 
+
+
+
+
+
+
 import React from 'react';
 import { Page, User } from '../types';
 import { logout } from '../services/authService';
-import { HomeIcon, BookOpenIcon, UsersIcon, MicrophoneIcon, HeartIcon, ChartPieIcon, ShieldCheckIcon, VideoCameraIcon, StarIcon, ChevronLeftIcon, AcademicCapIcon, CalendarDaysIcon, JournalIcon, SparklesIcon } from './Icons';
+import { HomeIcon, BookOpenIcon, UsersIcon, MicrophoneIcon, HeartIcon, ChartPieIcon, ShieldCheckIcon, VideoCameraIcon, StarIcon, ChevronLeftIcon, AcademicCapIcon, CalendarDaysIcon, JournalIcon, SparklesIcon, InformationCircleIcon, QuestionMarkCircleIcon, BibleIcon } from './Icons';
 import { PrayingHandsIcon } from './Icons';
 import { useTheme } from '../hooks/useTheme';
 
@@ -84,7 +90,8 @@ export default function Sidebar({ isMobileOpen, onMobileClose, isCollapsed, onTo
                 <nav className="flex-1 space-y-1 overflow-y-auto scrollbar-hide">
                     <h2 className={`px-4 pt-4 pb-2 text-xs font-bold uppercase text-marrom-seiva/60 dark:text-creme-velado/60 whitespace-nowrap transition-opacity duration-300 ${isCollapsed ? 'md:opacity-0 md:hidden' : 'opacity-100'}`}>Menu</h2>
                     <NavLink icon={HomeIcon} label="Início" page="home" currentPage={currentPage} onNavigate={onNavigate} isCollapsed={isCollapsed} />
-                    <NavLink icon={BookOpenIcon} label="Devocionais" page="devotionals" currentPage={currentPage} onNavigate={onNavigate} isCollapsed={isCollapsed} />
+                    <NavLink icon={BookOpenIcon} label="Lançamento" page="bookLaunch" currentPage={currentPage} onNavigate={onNavigate} isCollapsed={isCollapsed} />
+                    <NavLink icon={BibleIcon} label="Devocionais" page="devotionals" currentPage={currentPage} onNavigate={onNavigate} isCollapsed={isCollapsed} />
                     <NavLink icon={AcademicCapIcon} label="Mentoria" page="mentorships" currentPage={currentPage} onNavigate={onNavigate} isCollapsed={isCollapsed} />
                     <NavLink icon={PrayingHandsIcon} label="Orações" page="prayers" currentPage={currentPage} onNavigate={onNavigate} isCollapsed={isCollapsed} />
                     <NavLink icon={UsersIcon} label="Estudos" page="studies" currentPage={currentPage} onNavigate={onNavigate} isCollapsed={isCollapsed} />
@@ -96,8 +103,16 @@ export default function Sidebar({ isMobileOpen, onMobileClose, isCollapsed, onTo
                     <NavLink icon={JournalIcon} label="Diário" page="journal" currentPage={currentPage} onNavigate={onNavigate} isCollapsed={isCollapsed} />
                     <NavLink icon={SparklesIcon} label="Meu Jardim" page="myGarden" currentPage={currentPage} onNavigate={onNavigate} isCollapsed={isCollapsed} />
                     
+                    <div className="my-4 border-t border-marrom-seiva/10 dark:border-creme-velado/10"></div>
+                    <h2 className={`px-4 pb-2 text-xs font-bold uppercase text-marrom-seiva/60 dark:text-creme-velado/60 whitespace-nowrap transition-opacity duration-300 ${isCollapsed ? 'md:opacity-0 md:hidden' : 'opacity-100'}`}>Institucional</h2>
+                    <NavLink icon={InformationCircleIcon} label="Sobre Nós" page="about" currentPage={currentPage} onNavigate={onNavigate} isCollapsed={isCollapsed} />
+                    <NavLink icon={QuestionMarkCircleIcon} label="Dúvidas Frequentes" page="faq" currentPage={currentPage} onNavigate={onNavigate} isCollapsed={isCollapsed} />
+
+
                     {user?.role === 'admin' && (
-                         <NavLink icon={ShieldCheckIcon} label="Admin" page="admin" currentPage={currentPage} onNavigate={onNavigate} isCollapsed={isCollapsed} />
+                         <div className="mt-4 pt-4 border-t border-marrom-seiva/10 dark:border-creme-velado/10">
+                            <NavLink icon={ShieldCheckIcon} label="Admin" page="admin" currentPage={currentPage} onNavigate={onNavigate} isCollapsed={isCollapsed} />
+                         </div>
                     )}
                 </nav>
 

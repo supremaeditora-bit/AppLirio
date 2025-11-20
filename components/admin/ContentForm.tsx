@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { ContentItem, ContentType, User } from '../../types';
 import { createContentItem, updateContentItem } from '../../services/api';
@@ -123,11 +122,23 @@ export default function ContentForm({ isOpen, onClose, item, user, defaultType }
   const startRecording = async () => {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+        
+        let mimeType = 'audio/webm';
+        if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+            mimeType = 'audio/webm;codecs=opus';
+        } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+            mimeType = 'audio/mp4';
+        } else if (MediaRecorder.isTypeSupported('audio/ogg')) {
+            mimeType = 'audio/ogg';
+        }
+
+        mediaRecorderRef.current = new MediaRecorder(stream, { mimeType });
         audioChunksRef.current = [];
         
         mediaRecorderRef.current.ondataavailable = event => {
-            audioChunksRef.current.push(event.data);
+            if (event.data.size > 0) {
+                audioChunksRef.current.push(event.data);
+            }
         };
         
         mediaRecorderRef.current.onstop = () => {
@@ -148,12 +159,12 @@ export default function ContentForm({ isOpen, onClose, item, user, defaultType }
         setIsRecording(true);
     } catch (err) {
         console.error("Error accessing microphone:", err);
-        alert("Não foi possível acessar o microfone. Verifique as permissões do seu navegador.");
+        alert("Não foi possível acessar o microfone. Verifique se você permitiu o acesso nas configurações do navegador ou do sistema.");
     }
   };
   
   const stopRecording = () => {
-      if (mediaRecorderRef.current) {
+      if (mediaRecorderRef.current && isRecording) {
           mediaRecorderRef.current.stop();
           setIsRecording(false);
       }

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { 
     getContentItem, 
@@ -248,7 +247,7 @@ export default function ContentDetail({ id, user, onUserUpdate, onNavigate }: Co
             className="relative flex flex-col justify-end min-h-[50vh] sm:min-h-[60vh] w-full bg-cover bg-center" 
             style={{backgroundImage: `url('${item.imageUrl}')`}}
         >
-             <div className="absolute inset-0 bg-gradient-to-t from-[#D9C7A6] via-[#D9C7A6]/80 to-transparent dark:!from-verde-mata dark:!via-verde-mata/80 transition-colors duration-500"></div>
+             <div className="absolute inset-0 bg-gradient-to-t from-[#D9C7A6] from-20% via-[#D9C7A6]/80 via-60% to-transparent dark:from-[#152218] dark:from-20% dark:via-[#152218]/80 dark:via-60% transition-colors duration-500"></div>
              
              <div className="relative z-10 p-6 sm:p-8 md:p-12 w-full max-w-5xl mx-auto">
                 <span className="font-sans font-semibold tracking-wider uppercase text-xs sm:text-sm text-marrom-seiva/80 dark:text-dourado-suave">{item.type}</span>

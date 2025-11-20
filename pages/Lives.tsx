@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { LiveSession, User, Comment } from '../types';
 import { getLiveSessions, deleteLiveSession, addReactionToLiveSession, addCommentToLiveSession, addReactionToLiveComment, deleteCommentFromLiveSession } from '../services/api';
@@ -83,6 +84,7 @@ export default function Lives({ user }: LivesProps) {
   const [commentText, setCommentText] = useState('');
   const [commentToDelete, setCommentToDelete] = useState<{sessionId: string, comment: Comment} | null>(null);
   const [isConfirmDeleteCommentOpen, setIsConfirmDeleteCommentOpen] = useState(false);
+  const [isPostingComment, setIsPostingComment] = useState(false);
   
   const canManage = user && (user.role === 'admin' || user.role === 'mentora');
 
@@ -99,28 +101,30 @@ export default function Lives({ user }: LivesProps) {
     return `há ${days}d`;
   };
 
-  const fetchSessions = async () => {
-    setIsLoading(true);
+  const fetchSessions = async (showLoading = true) => {
+    if (showLoading) setIsLoading(true);
     const data = await getLiveSessions();
     data.forEach(s => s.comments.sort((a,b) => (b.reactions?.length || 0) - (a.reactions?.length || 0)));
     setSessions(data);
 
-    const liveSession = data.find(s => s.status === 'live');
-    
-    if (liveSession) {
-        // A live session always takes precedence as the main feature.
-        setSelectedSession(liveSession);
+    // Update selectedSession with fresh data if it exists
+    if (selectedSession) {
+        const freshSelected = data.find(s => s.id === selectedSession.id);
+        if (freshSelected) {
+            setSelectedSession(freshSelected);
+        }
     } else {
-        // If no live session, check if the current selection is still valid.
-        const currentSelectedIsValid = selectedSession && data.some(s => s.id === selectedSession.id);
-        if (!currentSelectedIsValid) {
-            // If not valid, or nothing was selected, pick a default.
+        // Only auto-select if nothing is selected
+        const liveSession = data.find(s => s.status === 'live');
+        if (liveSession) {
+            setSelectedSession(liveSession);
+        } else {
             const defaultSession = data.find(s => s.status !== 'past') || data[0] || null;
             setSelectedSession(defaultSession);
         }
     }
     
-    setIsLoading(false);
+    if (showLoading) setIsLoading(false);
   };
 
   useEffect(() => {
@@ -190,15 +194,50 @@ export default function Lives({ user }: LivesProps) {
     setSessions(sessions.map(s => s.id === updatedSession.id ? updatedSession : s));
 
     await addReactionToLiveSession(selectedSession.id, user.id);
+    // Don't re-fetch immediately to avoid race conditions
   };
 
   const handleComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!commentText.trim() || !user || !selectedSession) return;
-    const currentComment = commentText;
-    setCommentText('');
-    await addCommentToLiveSession(selectedSession.id, currentComment, user);
-    fetchSessions();
+    
+    const currentCommentText = commentText;
+    setCommentText(''); // Clear input immediately
+    setIsPostingComment(true);
+
+    // 1. Create Optimistic Comment
+    const newComment: Comment = {
+        id: crypto.randomUUID(), // Temporary ID
+        body: currentCommentText,
+        author: {
+            id: user.id,
+            fullName: user.fullName,
+            avatarUrl: user.avatarUrl
+        },
+        createdAt: new Date().toISOString(),
+        reactions: []
+    };
+
+    // 2. Update State Optimistically
+    const updatedSession = {
+        ...selectedSession,
+        comments: [...selectedSession.comments, newComment]
+    };
+    
+    setSelectedSession(updatedSession);
+    setSessions(prev => prev.map(s => s.id === selectedSession.id ? updatedSession : s));
+
+    try {
+        await addCommentToLiveSession(selectedSession.id, currentCommentText, user);
+        // Do NOT re-fetch immediately. 
+        // The local state is the "truth" for the user now. 
+        // A background re-fetch can happen later or on page reload.
+    } catch (error) {
+        console.error("Failed to post comment", error);
+        // Ideally, show an error toast here and maybe remove the optimistic comment
+    } finally {
+        setIsPostingComment(false);
+    }
   };
   
   const handleCommentReaction = async (commentId: string) => {
@@ -217,8 +256,7 @@ export default function Lives({ user }: LivesProps) {
     }
     
     updatedSession.comments[commentIndex] = comment;
-    updatedSession.comments.sort((a,b) => (b.reactions?.length || 0) - (a.reactions?.length || 0));
-
+    
     setSelectedSession(updatedSession);
     setSessions(sessions.map(s => s.id === updatedSession.id ? updatedSession : s));
     
@@ -232,10 +270,20 @@ export default function Lives({ user }: LivesProps) {
 
   const handleDeleteComment = async () => {
       if (!commentToDelete) return;
+      
+      // Optimistic update for deletion
+      if (selectedSession && selectedSession.id === commentToDelete.sessionId) {
+          const updatedSession = {
+              ...selectedSession,
+              comments: selectedSession.comments.filter(c => c.id !== commentToDelete.comment.id)
+          };
+          setSelectedSession(updatedSession);
+          setSessions(sessions.map(s => s.id === selectedSession.id ? updatedSession : s));
+      }
+
       await deleteCommentFromLiveSession(commentToDelete.sessionId, commentToDelete.comment.id);
       setIsConfirmDeleteCommentOpen(false);
       setCommentToDelete(null);
-      fetchSessions();
   };
 
   if (isLoading && sessions.length === 0) {
@@ -301,17 +349,17 @@ export default function Lives({ user }: LivesProps) {
                                 className="w-full font-sans bg-branco-nevoa dark:bg-verde-mata border-2 border-marrom-seiva/20 dark:border-creme-velado/20 rounded-xl p-3 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-dourado-suave placeholder:text-[#7A6C59] dark:placeholder:text-creme-velado/60"
                                 rows={2}
                             />
-                            <button type="submit" className="absolute right-3 bottom-3 p-2 rounded-full text-dourado-suave hover:bg-dourado-suave/10 disabled:opacity-50" disabled={!commentText.trim()}>
-                                <PaperAirplaneIcon className="w-5 h-5" />
+                            <button type="submit" className="absolute right-3 bottom-3 p-2 rounded-full text-dourado-suave hover:bg-dourado-suave/10 disabled:opacity-50" disabled={!commentText.trim() || isPostingComment}>
+                                {isPostingComment ? <Spinner variant="button" /> : <PaperAirplaneIcon className="w-5 h-5" />}
                             </button>
                         </div>
                     </form>
                 )}
                 <div className="space-y-4">
-                    {selectedSession.comments.map(comment => {
+                    {selectedSession.comments.length > 0 ? selectedSession.comments.map(comment => {
                         const hasCommentReacted = user ? comment.reactions?.some(r => r.userId === user.id) : false;
                         return (
-                            <div key={comment.id} className="group flex items-start space-x-3">
+                            <div key={comment.id} className="group flex items-start space-x-3 animate-fade-in">
                                 <img src={comment.author.avatarUrl} alt={comment.author.fullName} className="w-10 h-10 rounded-full object-cover" />
                                 <div className="flex-1 bg-branco-nevoa dark:bg-verde-mata p-4 rounded-xl">
                                     <div className="flex justify-between items-start">
@@ -337,7 +385,9 @@ export default function Lives({ user }: LivesProps) {
                                 </div>
                             </div>
                         )
-                    })}
+                    }) : (
+                         <p className="text-marrom-seiva/60 dark:text-creme-velado/60 text-sm italic">Nenhum comentário ainda. Seja a primeira a comentar!</p>
+                    )}
                 </div>
             </div>
           </section>

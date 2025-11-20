@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
-import { getCommunityPosts, addReactionToPost, updateCommunityPost, deleteCommunityPost } from '../services/api';
-import { CommunityPost, User, Page } from '../types';
+import { getCommunityPosts, addReactionToPost, updateCommunityPost, deleteCommunityPost, getAppearanceSettings } from '../services/api';
+import { CommunityPost, User, Page, PageHeaderConfig } from '../types';
 import Spinner from '../components/Spinner';
 import { HeartIcon, ChatBubbleIcon, BookOpenIcon, PlusIcon, PencilIcon, TrashIcon } from '../components/Icons';
 import Button from '../components/Button';
@@ -107,6 +106,7 @@ export default function Testimonials({ onViewTestimonial, onNavigate, user }: Te
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [filteredPosts, setFilteredPosts] = useState<CommunityPost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [headerConfig, setHeaderConfig] = useState<PageHeaderConfig | undefined>(undefined);
   
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('Recentes');
@@ -123,8 +123,14 @@ export default function Testimonials({ onViewTestimonial, onNavigate, user }: Te
 
   const fetchItems = async () => {
       setIsLoading(true);
-      const postData = await getCommunityPosts('testemunhos');
+      const [postData, settings] = await Promise.all([
+          getCommunityPosts('testemunhos'),
+          getAppearanceSettings()
+      ]);
       setPosts(postData);
+      if (settings.pageHeaders?.testimonials) {
+          setHeaderConfig(settings.pageHeaders.testimonials);
+      }
       setIsLoading(false);
   };
 
@@ -201,21 +207,40 @@ export default function Testimonials({ onViewTestimonial, onNavigate, user }: Te
   };
 
   return (
-    <div className="min-h-full">
-        <header className="sticky top-0 z-10 flex items-center justify-between p-4 bg-creme-velado/80 dark:bg-verde-mata/80 backdrop-blur-md border-b border-marrom-seiva/10 dark:border-creme-velado/10">
-            <div className="flex items-center space-x-2">
-                <BookOpenIcon className="w-7 h-7 text-verde-mata dark:text-dourado-suave" />
-                <h1 className="font-serif text-xl font-bold text-verde-mata dark:text-dourado-suave">Testemunhos de Fé</h1>
+    <div className="min-h-full bg-creme-velado dark:bg-verde-escuro-profundo">
+         {/* Hero Header */}
+        <div className="relative h-[40vh] sm:h-[50vh] w-full">
+            <img 
+                src={headerConfig?.imageUrl || "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?q=80&w=1632&auto=format&fit=crop"}
+                alt="Testemunhos" 
+                className="w-full h-full object-cover" 
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#D9C7A6] from-20% via-[#D9C7A6]/80 via-60% to-transparent dark:from-[#152218] dark:from-20% dark:via-[#152218]/80 dark:via-60% transition-colors duration-500"></div>
+            
+            <button 
+                onClick={() => onNavigate('publishTestimonial')} 
+                className="absolute top-4 right-4 bg-white/90 dark:bg-verde-mata/90 p-3 rounded-full shadow-lg hover:scale-110 transition-transform z-20 text-verde-mata dark:text-dourado-suave flex items-center gap-2 font-semibold text-sm"
+            >
+                <PlusIcon className="w-5 h-5" />
+                <span className="hidden sm:inline">Adicionar Testemunho</span>
+            </button>
+
+            <div className="absolute bottom-0 left-0 w-full p-6 sm:p-12">
+                <div className="container mx-auto">
+                    <h1 className="font-serif text-4xl sm:text-6xl font-bold text-verde-mata dark:text-dourado-suave drop-shadow-sm">
+                        {headerConfig?.title || "Testemunhos de Fé"}
+                    </h1>
+                    <p className="text-marrom-seiva/80 dark:text-creme-velado/90 mt-2 text-lg max-w-xl font-sans font-medium drop-shadow-md">
+                        {headerConfig?.subtitle || "Histórias reais de transformação e graça. Compartilhe a sua também."}
+                    </p>
+                </div>
             </div>
-            <div className="flex items-center gap-4">
-                <Button onClick={() => onNavigate('publishTestimonial')} className="!py-2 !px-4">Adicionar Testemunho</Button>
-            </div>
-        </header>
+        </div>
 
         <main className="max-w-3xl mx-auto p-4 sm:p-8">
-            <h2 className="font-serif text-4xl font-bold text-verde-mata dark:text-dourado-suave">Feed de Testemunhos</h2>
+            <h2 className="font-serif text-2xl font-bold text-verde-mata dark:text-dourado-suave mb-6">Feed de Testemunhos</h2>
             
-            <div className="my-6">
+            <div className="mb-6">
                 <SearchAndFilter
                     searchQuery={searchQuery}
                     onSearchChange={setSearchQuery}

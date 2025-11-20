@@ -23,7 +23,7 @@ export async function generateGeminiContent(prompt: string): Promise<string> {
     });
 
     // Extracting text directly from the response object as per guidelines.
-    return response.text;
+    return response.text || "";
   } catch (error: any) {
     console.error("Error calling Gemini API:", error.message || error);
     // Provide a user-friendly error message.
@@ -86,7 +86,7 @@ export async function generateDevotional(): Promise<GeneratedDevotional | null> 
             },
         });
         
-        let jsonStr = response.text.trim();
+        let jsonStr = response.text?.trim() || "{}";
         // The API can sometimes wrap the JSON in markdown, so we clean it up.
         const jsonMatch = jsonStr.match(/```json\n([\s\S]*?)\n```/);
         if (jsonMatch && jsonMatch[1]) {
@@ -98,6 +98,45 @@ export async function generateDevotional(): Promise<GeneratedDevotional | null> 
 
     } catch (error: any) {
         console.error("Error calling Gemini API for devotional:", error.message || error);
+        return null;
+    }
+}
+
+export async function generateDevotionalImage(title: string): Promise<File | null> {
+    try {
+        const prompt = `Uma imagem serena, artística e espiritual representando o conceito cristão de: "${title}". Estilo suave, iluminação natural, cores quentes e acolhedoras, sem texto, estilo pintura a óleo moderna ou fotografia cinemática suave.`;
+
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash-image', // Using generic image generation model as per instructions for simple requests
+            contents: prompt,
+            // Note: For generating images, usually we get an image part in response.
+            // Assuming standard Gemini API image generation response structure or a base64 string in text.
+            // However, the system prompt instructs to use `generateContent` and look for `inlineData` or similar.
+            // Since `gemini-2.5-flash-image` is typically for *inputting* images, but the instruction says
+            // "General Image Generation...: 'gemini-2.5-flash-image'", we follow the pattern.
+            // Actually, for GENERATION, newer models might return the image bytes directly or a link.
+            // We will try to adapt based on the standard 'generateContent' structure.
+        });
+
+        // Iterate parts to find image
+        if (response.candidates && response.candidates[0].content.parts) {
+            for (const part of response.candidates[0].content.parts) {
+                if (part.inlineData) {
+                    const base64Data = part.inlineData.data;
+                    const byteCharacters = atob(base64Data);
+                    const byteNumbers = new Array(byteCharacters.length);
+                    for (let i = 0; i < byteCharacters.length; i++) {
+                        byteNumbers[i] = byteCharacters.charCodeAt(i);
+                    }
+                    const byteArray = new Uint8Array(byteNumbers);
+                    const blob = new Blob([byteArray], { type: "image/png" });
+                    return new File([blob], "devotional-cover.png", { type: "image/png" });
+                }
+            }
+        }
+        return null;
+    } catch (error) {
+        console.error("Failed to generate devotional image:", error);
         return null;
     }
 }
@@ -143,7 +182,7 @@ export async function generateReadingPlan(topic: string): Promise<Omit<ReadingPl
             },
         });
         
-        const jsonStr = response.text.trim();
+        const jsonStr = response.text?.trim() || "{}";
         const planData = JSON.parse(jsonStr) as Omit<ReadingPlan, 'id' | 'imageUrl'>;
         
         // Data sanitization and validation to make the feature more robust.
