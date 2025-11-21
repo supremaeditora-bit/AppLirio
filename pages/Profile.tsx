@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User, Page, CommunityPost, Event, UserNotificationSettings, ReadingPlan, UserReadingPlanProgress, UserPlaylist, ContentItem } from '../types';
-import { Notification } from '../notification_TEMP';
-import Spinner from '../components/Spinner';import Modal from '../components/Modal';
+// REMOVIDO O IMPORT QUE DAVA ERRO
+import Spinner from '../components/Spinner';
+import Modal from '../components/Modal';
 import InputField from '../components/InputField';
 import Button from '../components/Button';
 import { getNotifications, getCommunityPosts, updateCommunityPost, deleteCommunityPost, getEvents, getReadingPlans, getAllUserReadingProgress, getContentItem } from '../services/api';
@@ -13,6 +14,20 @@ import ProgressBar from '../components/ProgressBar';
 import * as pushService from '../services/pushService';
 import { LEVELS } from '../services/gamificationService';
 import PlanCard from '../components/PlanCard';
+
+// --- CORREÇÃO: Interface definida localmente para evitar erro de importação ---
+export interface Notification {
+  id: string;
+  userId?: string;
+  title: string;
+  body: string;
+  message?: string;
+  type?: 'system' | 'reminder' | 'message' | 'comment' | 'reaction' | string;
+  createdAt: string;
+  read?: boolean;
+  readBy?: string[];
+}
+// ---------------------------------------------------------------------------
 
 interface ProfileProps {
     user: User | null;
