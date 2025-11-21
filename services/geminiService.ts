@@ -1,11 +1,11 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { GeneratedDevotional, ReadingPlan } from '../types';
 import { uploadAudio } from './storageService';
 
-// As per guidelines, apiKey is from process.env.
-// The app should ensure process.env.API_KEY is available.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+// CORREÇÃO APLICADA:
+// A chave da API é agora lida da variável de ambiente GEMINI_API_KEY,
+// que é o nome que você configurou no Vercel.
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
 
 /**
  * Generates content using the Gemini API.
@@ -109,13 +109,6 @@ export async function generateDevotionalImage(title: string): Promise<File | nul
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash-image', // Using generic image generation model as per instructions for simple requests
             contents: prompt,
-            // Note: For generating images, usually we get an image part in response.
-            // Assuming standard Gemini API image generation response structure or a base64 string in text.
-            // However, the system prompt instructs to use `generateContent` and look for `inlineData` or similar.
-            // Since `gemini-2.5-flash-image` is typically for *inputting* images, but the instruction says
-            // "General Image Generation...: 'gemini-2.5-flash-image'", we follow the pattern.
-            // Actually, for GENERATION, newer models might return the image bytes directly or a link.
-            // We will try to adapt based on the standard 'generateContent' structure.
         });
 
         // Iterate parts to find image
