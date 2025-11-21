@@ -104,11 +104,11 @@ export async function generateDevotional(): Promise<GeneratedDevotional | null> 
 
 export async function generateDevotionalImage(title: string): Promise<File | null> {
     try {
-        // Prompt ajustado para hiper-realismo e paisagens (sem pessoas)
         const prompt = `Uma imagem serena e hiper-realista de uma paisagem natural (sem pessoas), com iluminação natural suave e cores acolhedoras, representando o tema: "${title}".`;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash-image', // Using generic image generation model as per instructions for simple requests
+            // 🚨 CORREÇÃO PRINCIPAL: Trocando para o modelo de geração de imagem dedicado (Imagen)
+            model: 'imagen-3.0-generate-002', 
             contents: prompt,
         });
 
@@ -118,7 +118,7 @@ export async function generateDevotionalImage(title: string): Promise<File | nul
                 if (part.inlineData) {
                     const base64Data = part.inlineData.data;
                     
-                    // CORREÇÃO APLICADA AQUI: Substituindo 'atob' (navegador) por 'Buffer.from' (Node.js/Vercel)
+                    // Correção anterior do Buffer (compatibilidade Vercel/Node.js)
                     const buffer = Buffer.from(base64Data, 'base64');
                     const blob = new Blob([buffer], { type: "image/png" });
                     
