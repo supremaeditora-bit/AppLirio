@@ -100,12 +100,12 @@ export async function generateDevotional(): Promise<GeneratedDevotional | null> 
 
 export async function generateDevotionalImage(title: string): Promise<File | null> {
     try {
-        // Prompt ajustado para hiper-realismo, paisagens e exclusão de pessoas.
-        const prompt = `Uma imagem serena e hiper-realista de uma paisagem natural (sem pessoas), com iluminação natural suave e cores acolhedoras, representando o tema: "${title}".`;
+        // PROMPT AJUSTADO: Imagem de paisagem simples, pacífica, sem pessoas, não hiperrealista.
+        const prompt = `Uma imagem simples, artística e pacífica de uma paisagem natural (sem pessoas), representando o tema: "${title}". Estilo aquarela suave ou pintura digital, com cores calmas, iluminação natural suave e foco em elementos da natureza (montanhas, água, céu).`;
 
         const response = await ai.models.generateContent({
-            // CORREÇÃO: Usando o modelo Imagen 3.0 dedicado para geração de imagem.
-            model: 'imagen-3.0-generate-002', 
+            // MODELO AJUSTADO: Tentando o modelo mais acessível.
+            model: 'gemini-2.5-flash-image', 
             contents: prompt,
         });
 
@@ -115,7 +115,7 @@ export async function generateDevotionalImage(title: string): Promise<File | nul
                 if (part.inlineData) {
                     const base64Data = part.inlineData.data;
                     
-                    // CORREÇÃO: Usando Buffer.from para decodificação Base64 no ambiente Vercel/Node.js
+                    // CORREÇÃO ESSENCIAL: Usando Buffer.from para decodificação Base64 no ambiente Vercel/Node.js
                     const buffer = Buffer.from(base64Data, 'base64');
                     const blob = new Blob([buffer], { type: "image/png" });
                     
@@ -125,7 +125,8 @@ export async function generateDevotionalImage(title: string): Promise<File | nul
         }
         return null;
     } catch (error) {
-        console.error("Failed to generate devotional image:", error);
+        // Log detalhado para diagnóstico
+        console.error("Failed to generate devotional image:", (error as any).message || error);
         return null;
     }
 }
@@ -174,19 +175,16 @@ export async function generateReadingPlan(topic: string): Promise<Omit<ReadingPl
         const jsonStr = response.text?.trim() || "{}";
         const planData = JSON.parse(jsonStr) as Omit<ReadingPlan, 'id' | 'imageUrl'>;
         
-        // Data sanitization and validation to make the feature more robust.
+        // Validação e saneamento de dados (mantido)
         if (!planData || !planData.days || !Array.isArray(planData.days)) {
             console.error("AI did not return a valid 'days' array.", planData);
             throw new Error("A IA retornou dados em um formato inesperado.");
         }
 
-        // Correct the duration to match the actual number of days returned by the AI.
-        // This prevents errors if the AI is inconsistent.
         planData.durationDays = planData.days.length;
 
-        // Ensure each day has the required fields and correct day number.
         planData.days = planData.days.map((day, index) => ({
-            day: index + 1, // Overwrite day number for consistency
+            day: index + 1,
             title: day.title || `Reflexão para o Dia ${index + 1}`,
             passage: day.passage || "A ser definido",
             content: day.content || "Conteúdo a ser adicionado.",
