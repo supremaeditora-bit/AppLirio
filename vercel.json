@@ -1,2 +1,0 @@
-Nome do arquivo,Conteúdo
-vercel.json,"json { ""rewrites"": [ { ""source"": ""/(.*)"", ""destination"": ""/index.html"" } ] } "
