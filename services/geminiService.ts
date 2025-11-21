@@ -2,9 +2,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { GeneratedDevotional, ReadingPlan } from '../types';
 import { uploadAudio } from './storageService';
 
-// CORREÇÃO APLICADA:
-// A chave da API é agora lida da variável de ambiente GEMINI_API_KEY,
-// que é o nome que você configurou no Vercel.
+// CORREÇÃO: Inicialização com a variável de ambiente GEMINI_API_KEY
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
 
 /**
@@ -16,17 +14,15 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
  */
 export async function generateGeminiContent(prompt: string): Promise<string> {
   try {
-    // Using gemini-2.5-flash for basic text tasks as per guidelines.
+    // Usando gemini-2.5-flash para tarefas de texto
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
     });
 
-    // Extracting text directly from the response object as per guidelines.
     return response.text || "";
   } catch (error: any) {
     console.error("Error calling Gemini API:", error.message || error);
-    // Provide a user-friendly error message.
     return "An error occurred while trying to get a response from the AI.";
   }
 }
@@ -87,7 +83,7 @@ export async function generateDevotional(): Promise<GeneratedDevotional | null> 
         });
         
         let jsonStr = response.text?.trim() || "{}";
-        // The API can sometimes wrap the JSON in markdown, so we clean it up.
+        // A API pode às vezes envolver o JSON em markdown, então limpamos.
         const jsonMatch = jsonStr.match(/```json\n([\s\S]*?)\n```/);
         if (jsonMatch && jsonMatch[1]) {
             jsonStr = jsonMatch[1];
@@ -104,21 +100,22 @@ export async function generateDevotional(): Promise<GeneratedDevotional | null> 
 
 export async function generateDevotionalImage(title: string): Promise<File | null> {
     try {
+        // Prompt ajustado para hiper-realismo, paisagens e exclusão de pessoas.
         const prompt = `Uma imagem serena e hiper-realista de uma paisagem natural (sem pessoas), com iluminação natural suave e cores acolhedoras, representando o tema: "${title}".`;
 
         const response = await ai.models.generateContent({
-            // 🚨 CORREÇÃO PRINCIPAL: Trocando para o modelo de geração de imagem dedicado (Imagen)
+            // CORREÇÃO: Usando o modelo Imagen 3.0 dedicado para geração de imagem.
             model: 'imagen-3.0-generate-002', 
             contents: prompt,
         });
 
-        // Iterate parts to find image
+        // Itera as partes para encontrar a imagem
         if (response.candidates && response.candidates[0].content.parts) {
             for (const part of response.candidates[0].content.parts) {
                 if (part.inlineData) {
                     const base64Data = part.inlineData.data;
                     
-                    // Correção anterior do Buffer (compatibilidade Vercel/Node.js)
+                    // CORREÇÃO: Usando Buffer.from para decodificação Base64 no ambiente Vercel/Node.js
                     const buffer = Buffer.from(base64Data, 'base64');
                     const blob = new Blob([buffer], { type: "image/png" });
                     
