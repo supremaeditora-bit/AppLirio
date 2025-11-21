@@ -2,9 +2,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { GeneratedDevotional, ReadingPlan } from '../types';
 import { uploadAudio } from './storageService';
 
-// CORREÇÃO APLICADA:
-// A chave da API é agora lida da variável de ambiente GEMINI_API_KEY,
-// que é o nome que você configurou no Vercel.
+// CORREÇÃO 1: Usando o nome da variável de ambiente configurada no Vercel (GEMINI_API_KEY).
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
 
 /**
@@ -104,7 +102,8 @@ export async function generateDevotional(): Promise<GeneratedDevotional | null> 
 
 export async function generateDevotionalImage(title: string): Promise<File | null> {
     try {
-        const prompt = `Uma imagem serena, artística e espiritual representando o conceito cristão de: "${title}". Estilo suave, iluminação natural, cores quentes e acolhedoras, sem texto, estilo pintura a óleo moderna ou fotografia cinemática suave.`;
+        // CORREÇÃO 2: Prompt ajustado para hiper-realismo, paisagens e exclusão de pessoas.
+        const prompt = `Uma imagem hiper-realista e serena de uma paisagem natural, sem a presença de pessoas, representando o conceito espiritual de: "${title}". Estilo fotografia cinematográfica detalhada, iluminação natural suave, cores quentes e acolhedoras.`;
 
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash-image', // Using generic image generation model as per instructions for simple requests
