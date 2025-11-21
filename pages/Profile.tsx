@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User, Page, CommunityPost, Event, UserNotificationSettings, ReadingPlan, UserReadingPlanProgress, UserPlaylist, ContentItem } from '../types';
-import { Notification } from '../notification.types';
+import { Notification } from '../notification_TEMP';
 import Spinner from '../components/Spinner';import Modal from '../components/Modal';
 import InputField from '../components/InputField';
 import Button from '../components/Button';
