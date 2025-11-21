@@ -113,8 +113,8 @@ export interface Notification {
   id: string;
   userId?: string;
   title: string;
-  message: string;
-  body?: string; // Compatibilidade com código antigo
+  body: string;
+  message?: string; // Compatibilidade
   type?: 'system' | 'reminder' | 'message' | 'comment' | 'reaction' | string;
   createdAt: string;
   read?: boolean;
