@@ -109,6 +109,7 @@ export interface CommunityPost {
   savedBy?: string[];
 }
 
+// Notification interface for user alerts
 export interface Notification {
   id: string;
   userId?: string;
