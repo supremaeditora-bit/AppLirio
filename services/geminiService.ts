@@ -104,7 +104,7 @@ export async function generateDevotional(): Promise<GeneratedDevotional | null> 
 
 export async function generateDevotionalImage(title: string): Promise<File | null> {
     try {
-        const prompt = `Uma imagem hiper-realista e serena de uma paisagem natural, sem a presença de pessoas, representando o conceito espiritual de: "${title}". Estilo fotografia cinematográfica detalhada, iluminação natural suave, cores quentes e acolhedoras.`;
+        const prompt = `Uma imagem serena, artística e espiritual representando o conceito cristão de: "${title}". Estilo suave, iluminação natural, cores quentes e acolhedoras, sem texto, estilo pintura a óleo moderna ou fotografia cinemática suave.`;
 
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash-image', // Using generic image generation model as per instructions for simple requests
