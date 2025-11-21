@@ -1,8 +1,6 @@
-
-export type Page = 'login' | 'signup' | 'landing' | 'home' | 'profile' | 'devotionals' | 'studies' | 'lives' | 'podcasts' | 'prayers' | 'challenges' | 'mentorships' | 'contentDetail' | 'testimonials' | 'testimonialDetail' | 'publishTestimonial' | 'admin' | 'readingPlans' | 'planDetail' | 'events' | 'eventDetail' | 'journal' | 'myGarden' | 'about' | 'faq' | 'checkout' | 'bookLaunch';
+export type Page = 'login' | 'signup' | 'landing' | 'home' | 'profile' | 'devotionals' | 'studies' | 'lives' | 'podcasts' | 'prayers' | 'challenges' | 'mentorships' | 'contentDetail' | 'testimonials' | 'testimonialDetail' | 'publishTestimonial' | 'admin' | 'readingPlans' | 'planDetail' | 'events' | 'eventDetail' | 'journal' | 'myGarden';
 
 export type Role = 'aluna' | 'mentora' | 'mod' | 'admin';
-export type UserStatus = 'active' | 'blocked' | 'banned';
 
 export interface UserPlaylist {
   id: string;
@@ -30,14 +28,12 @@ export interface User {
   fullName: string;
   avatarUrl: string;
   role: Role;
-  status?: UserStatus;
   biography: string;
   cidade: string;
   igreja: string;
   socialLinks: {
     instagram?: string;
     facebook?: string;
-    whatsapp?: string;
   };
   completedContentIds: string[];
   createdAt?: any;
@@ -63,7 +59,7 @@ export interface Achievement {
   requisito?: { tipo: string; count: number };
 }
 
-export type ContentType = 'Devocional' | 'Live' | 'Podcast' | 'Estudo' | 'Mentoria' | 'Plano' | 'Evento' | 'Testemunho' | 'Oração';
+export type ContentType = 'Devocional' | 'Live' | 'Podcast' | 'Estudo' | 'Mentoria';
 
 export interface ContentItem {
   id: string;
@@ -115,10 +111,14 @@ export interface CommunityPost {
 
 export interface Notification {
   id: string;
+  userId?: string;
   title: string;
-  body: string;
+  message: string;
+  body?: string; // Compatibilidade com código antigo
+  type?: 'system' | 'reminder' | 'message' | 'comment' | 'reaction' | string;
   createdAt: string;
-  readBy: string[];
+  read?: boolean;
+  readBy?: string[];
 }
 
 export interface LiveSession {
@@ -160,35 +160,6 @@ export interface ThemeColors {
   darkButtonText: string;
 }
 
-export interface AboutPageContent {
-    title: string;
-    content: string;
-    imageUrl: string;
-}
-
-export interface FAQItem {
-    id: string;
-    question: string;
-    answer: string;
-}
-
-export interface PageHeaderConfig {
-    title: string;
-    subtitle: string;
-    imageUrl: string;
-}
-
-export interface BookLaunchConfig {
-    bookTitle: string;
-    bookSubtitle: string;
-    bookCoverUrl: string;
-    bookPrice: number;
-    bookSynopsis: string;
-    authorName: string;
-    authorBio: string;
-    authorImageUrl: string;
-}
-
 export interface AppearanceSettings {
   isAiDevotionalEnabled: boolean;
   aiDevotionalScheduleTime: string;
@@ -213,13 +184,6 @@ export interface AppearanceSettings {
     headingFont: string;
     bodyFont: string;
   };
-  aboutPage?: AboutPageContent;
-  faq?: FAQItem[];
-  termsOfUse?: string;
-  privacyPolicy?: string;
-  contactInfo?: string;
-  pageHeaders?: Record<string, PageHeaderConfig>;
-  bookLaunch?: BookLaunchConfig;
 }
 
 export interface Challenge {
